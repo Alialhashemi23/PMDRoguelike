@@ -55,33 +55,9 @@ The game is built on a modular architecture with several key systems:
    dotnet run
    ```
 
-## 🧩 Feature Tracks
-
-Development is organized into two main feature tracks:
-
-### Track A: Core Systems
-- Dungeon generation system
-- Entity component framework
-- Player systems and controls
-- Combat mechanics
-
-### Track B: Content & AI
-- AI asset generation pipeline
-- Enemy AI behaviors
-- UI framework
-- Game progression
-
-## 🔄 Development Workflow
-
-We use Trello for project management: [Trello Board](https://trello.com/b/yourlinkhere)
-
-- **Project Overview Board**: Milestones and integration points
-- **Track A Board**: Core gameplay features
-- **Track B Board**: Content and AI systems
-
 ## 🎨 Art & Assets
 
-This project uses AI-generated assets to create unique Pokémon sprites, environments, and effects while maintaining the spirit of the original games. Our asset pipeline includes:
+This project plans to use AI-generated assets to create unique Pokémon sprites, environments, and effects while maintaining the spirit of the original games. Our asset pipeline includes:
 
 - Custom sprite generation for Pokémon variants
 - Procedural dungeon tile sets
@@ -98,5 +74,4 @@ This project is a non-commercial fan game. Pokémon and all related properties a
 This is a fan project created for educational purposes only.
 
 ## 📞 Contact
-
-Project Link: [https://github.com/yourusername/pokemon-mystery-dungeon-clone](https://github.com/yourusername/pokemon-mystery-dungeon-clone)
+Coming soon!
