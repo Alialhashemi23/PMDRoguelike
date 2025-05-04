@@ -4,12 +4,12 @@ using Microsoft.Xna.Framework.Input;
 
 namespace PMDRoguelike
 {
-    public class Game1 : Game
+    public class PMGRoguelike : Game
     {
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
 
-        public Game1()
+        public PMGRoguelike()
         {
             _graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";

@@ -1,2 +1,2 @@
-﻿using var game = new PMDRoguelike.Game1();
+﻿using var game = new PMDRoguelike.PMGRoguelike();
 game.Run();
