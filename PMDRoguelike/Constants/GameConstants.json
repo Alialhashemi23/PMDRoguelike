@@ -1,0 +1,92 @@
+{
+  "graphics": {
+    "virtualResolutionWidth": 1280,
+    "virtualResolutionHeight": 720,
+    "defaultWindowWidth": 1280,
+    "defaultWindowHeight": 720,
+    "tileSize": 32,
+    "pokemonSpriteSize": 32,
+    "itemSpriteSize": 16
+  },
+  "gameMechanics": {
+    "movement": {
+      "playerMovementSpeed": 200.0,
+      "enemyMovementSpeed": 150.0
+    },
+    "turns": {
+      "turnDurationMs": 500.0
+    },
+    "experience": {
+      "baseExpRequired": 100,
+      "expScaleFactor": 1.5,
+      "maxLevel": 100
+    }
+  },
+  "worldGeneration": {
+    "dungeons": {
+      "minRoomSize": 5,
+      "maxRoomSize": 15,
+      "maxRoomsPerFloor": 10,
+      "minCorridorLength": 1,
+      "maxCorridorLength": 10
+    },
+    "spawning": {
+      "enemySpawnRate": 0.3,
+      "itemSpawnRate": 0.1,
+      "trapSpawnRate": 0.05
+    }
+  },
+  "combat": {
+    "baseStats": {
+      "baseAttackDamage": 10,
+      "baseDefense": 5,
+      "baseHP": 50
+    },
+    "typeEffectiveness": {
+      "superEffective": 2.0,
+      "notVeryEffective": 0.5,
+      "noEffect": 0.0,
+      "neutral": 1.0
+    },
+    "statusEffects": {
+      "poisonDuration": 5,
+      "paralyzeDuration": 3,
+      "sleepDuration": 3,
+      "burnDuration": 5
+    }
+  },
+  "input": {
+    "keyBindings": {
+      "up": "Up",
+      "down": "Down",
+      "left": "Left",
+      "right": "Right",
+      "confirm": "Z",
+      "cancel": "X",
+      "menu": "C"
+    }
+  },
+  "assets": {
+    "paths": {
+      "sprites": "Sprites/",
+      "audio": "Audio/",
+      "fonts": "Fonts/",
+      "maps": "Maps/",
+      "data": "Data/"
+    }
+  },
+  "ai": {
+    "parameters": {
+      "detectionRange": 5,
+      "attackRange": 1,
+      "thinkDelay": 0.2
+    }
+  },
+  "debug": {
+    "settings": {
+      "showCollisionBoxes": false,
+      "showFPS": true,
+      "enableCheats": false
+    }
+  }
+}
