@@ -1,6 +1,8 @@
 using Microsoft.Xna.Framework;
+using PMDRoguelike.Combat;
 using PMDRoguelike.Constants;
 using PMDRoguelike.Core;
+using PMDRoguelike.Data;
 using PMDRoguelike.Dungeon;
 using PMDRoguelike.Turns;
 using System;
@@ -8,29 +10,37 @@ using System;
 namespace PMDRoguelike.Entities
 {
     /// <summary>
-    /// Phase 1 dummy enemy: chases the player when within detection range
-    /// (Chebyshev distance), otherwise wanders randomly. Real species, stats,
-    /// and smarter AI arrive in later phases.
+    /// Wild Pokémon AI: attack the player when a usable move can reach them,
+    /// chase when they're within detection range, wander lazily otherwise.
     /// </summary>
     public class Enemy : Actor
     {
-        public Enemy(Point gridPosition) : base(gridPosition)
-        {
-            SpriteKey = "entity.enemy";
-        }
+        public Enemy(Point gridPosition, SpeciesDefinition species, int level)
+            : base(gridPosition, species, level) { }
 
         /// <summary>
         /// Decide this enemy's action for the turn. <paramref name="isTileFree"/>
         /// answers whether a target tile will be unoccupied at the end of the turn
         /// (the TurnController tracks reservations).
         /// </summary>
-        public TurnAction DecideAction(DungeonMap map, Point playerPosition, Func<Point, bool> isTileFree, Rng rng)
+        public TurnAction DecideAction(DungeonMap map, Player player, Func<Point, bool> isTileFree, Rng rng)
         {
-            int distance = Chebyshev(GridPosition, playerPosition);
+            // Attack if any move with PP can reach the player from here.
+            for (int i = 0; i < Moves.Count; i++)
+            {
+                if (!Moves[i].HasPP) continue;
+                if (Targeting.InRange(map, this, player, Moves[i].Move, out Direction attackDir))
+                {
+                    Facing = attackDir;
+                    return new AttackAction(i);
+                }
+            }
+
+            int distance = Chebyshev(GridPosition, player.GridPosition);
 
             if (distance <= GameConstants.Instance.DetectionRange)
             {
-                Direction step = BestStepToward(map, playerPosition, isTileFree);
+                Direction step = BestStepToward(map, player.GridPosition, isTileFree);
                 if (step != Direction.None) return new MoveAction(step);
                 return new WaitAction();
             }

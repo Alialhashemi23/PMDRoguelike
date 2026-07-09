@@ -1,28 +1,79 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using PMDRoguelike.Combat;
 using PMDRoguelike.Constants;
 using PMDRoguelike.Core;
+using PMDRoguelike.Data;
 using PMDRoguelike.Managers;
 using PMDRoguelike.Turns;
+using PMDRoguelike.UI;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace PMDRoguelike.Entities
 {
     /// <summary>
-    /// The player-controlled Pokémon. Translates keyboard state into a TurnAction.
+    /// The player-controlled Pokémon: translates keyboard state into TurnActions
+    /// and owns EXP/level progression.
     /// </summary>
     public class Player : Actor
     {
         private float _heldMs;
 
-        public Player(Point gridPosition) : base(gridPosition)
+        public int Exp { get; private set; }
+
+        /// <summary>Moves earned by leveling while already knowing four — resolved via the learn prompt.</summary>
+        public List<MoveDefinition> PendingMoveLearns { get; } = new List<MoveDefinition>();
+
+        public Player(Point gridPosition, SpeciesDefinition species, int level)
+            : base(gridPosition, species, level) { }
+
+        public int ExpToNextLevel => ExpRequired(Level);
+
+        /// <summary>EXP needed to go from the given level to the next.</summary>
+        public static int ExpRequired(int level)
         {
-            SpriteKey = "entity.player";
+            var cfg = GameConstants.Instance.Data.GameMechanics.Experience;
+            return Math.Max(1, (int)(cfg.BaseExpRequired * Math.Pow(level, cfg.ExpScaleFactor)) / 10);
         }
 
         /// <summary>
-        /// Poll input for this frame and return an action once one is committed,
-        /// or null if the player hasn't decided yet. A short delay after the first
-        /// keypress lets a second key register so diagonals come out clean.
+        /// Award EXP, applying any level-ups: stats recalc, HP rises by the gain, and
+        /// learnset moves are learned (or queued for the replace prompt when full).
+        /// </summary>
+        public void AddExp(int amount, MessageLog log)
+        {
+            int maxLevel = GameConstants.Instance.Data.GameMechanics.Experience.MaxLevel;
+            Exp += amount;
+
+            while (Level < maxLevel && Exp >= ExpToNextLevel)
+            {
+                Exp -= ExpToNextLevel;
+                Level++;
+                RecalculateStats();
+                log.Add($"{DisplayName} grew to level {Level}!");
+
+                foreach (LearnsetEntry entry in Species.Learnset.Where(e => e.Level == Level))
+                {
+                    MoveDefinition move = GameData.GetMove(entry.Move);
+                    if (Moves.Count < MaxMoves)
+                    {
+                        Moves.Add(new MoveSlot(move));
+                        log.Add($"{DisplayName} learned {move.Name}!");
+                    }
+                    else
+                    {
+                        PendingMoveLearns.Add(move);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Poll input for this frame and return an action once one is committed, or null.
+        /// Movement uses a short grace delay so diagonals register cleanly; attacks
+        /// (1-4) and waiting (Space) trigger on key press.
         /// </summary>
         public TurnAction ReadInput(KeyboardManager keyboard, float deltaMs)
         {
@@ -30,6 +81,15 @@ namespace PMDRoguelike.Entities
             {
                 _heldMs = 0f;
                 return new WaitAction();
+            }
+
+            for (int i = 0; i < MaxMoves; i++)
+            {
+                if (keyboard.WasKeyJustPressed(Keys.D1 + i) || keyboard.WasKeyJustPressed(Keys.NumPad1 + i))
+                {
+                    _heldMs = 0f;
+                    return new AttackAction(i);
+                }
             }
 
             Direction held = keyboard.GetHeldDirection();

@@ -59,22 +59,22 @@ reach a stubbed victory; a stubbed game-over exists for later.
 
 ---
 
-## Phase 3: Pokémon Data & Combat Foundation
+## ✅ Phase 3: Pokémon Data & Combat Foundation — DONE
 
 **Goal:** real Pokémon on the grid hitting each other with real math. The biggest phase — the heart of the game.
 
-- [ ] Data pipeline: JSON loading for species (base stats, types, learnset), moves (power, type,
+- [x] Data pipeline: JSON loading for species (base stats, types, learnset), moves (power, type,
       physical/special, PP, accuracy, effects), and the full 18-type effectiveness chart
-- [ ] Curated content: ~12 species, ~25 moves authored
-- [ ] Stat system: level-based stat calculation from base stats; Actor gets a real stat block (HP/Atk/Def/SpA/SpD/Spe)
-- [ ] Damage formula: standard Pokémon mainline formula with STAB, type effectiveness, crit chance, damage roll
-- [ ] Moves & PP: player has up to 4 moves; move-selection UI (e.g. hold a modifier + 1–4); depleted PP blocks the move; basic "Struggle" fallback
-- [ ] Attack resolution as `TurnAction`s: `AttackAction` joins Move/Wait; facing-based targeting (melee + straight-line ranged); simple hit flash/lunge animation
-- [ ] **Message log UI**: scrolling combat log ("X used Ember! It's super effective!") — required to read combat
-- [ ] Enemy combat AI: use moves when in range, approach otherwise; enemies drawn from the current dungeon's spawn table with levels
-- [ ] Fainting: enemies die and are removed; player faints → GameOverState (permadeath)
-- [ ] EXP & leveling: EXP on kill (scaled by level), level-ups with stat growth, **move learning on level-up** with a replace-move prompt when at 4
-- [ ] Smoke test: scripted battle assertions (damage math golden tests, PP depletion, faint, level-up)
+- [x] Curated content: ~12 species, ~25 moves authored
+- [x] Stat system: level-based stat calculation from base stats; Actor gets a real stat block (HP/Atk/Def/SpA/SpD/Spe)
+- [x] Damage formula: standard Pokémon mainline formula with STAB, type effectiveness, crit chance, damage roll
+- [x] Moves & PP: player has up to 4 moves; move-selection UI (e.g. hold a modifier + 1–4); depleted PP blocks the move; basic "Struggle" fallback
+- [x] Attack resolution as `TurnAction`s: `AttackAction` joins Move/Wait; facing-based targeting (melee + straight-line ranged); simple hit flash/lunge animation
+- [x] **Message log UI**: scrolling combat log ("X used Ember! It's super effective!") — required to read combat
+- [x] Enemy combat AI: use moves when in range, approach otherwise; enemies drawn from the current dungeon's spawn table with levels
+- [x] Fainting: enemies die and are removed; player faints → GameOverState (permadeath)
+- [x] EXP & leveling: EXP on kill (scaled by level), level-ups with stat growth, **move learning on level-up** with a replace-move prompt when at 4
+- [x] Smoke test: scripted battle assertions (damage math golden tests, PP depletion, faint, level-up)
 
 **Playable check:** a real fight — pick moves, exploit type matchups, watch PP, kill things, level up, learn a move, die and see game over.
 

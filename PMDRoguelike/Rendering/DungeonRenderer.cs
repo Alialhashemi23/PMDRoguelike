@@ -22,12 +22,13 @@ namespace PMDRoguelike.Rendering
             _content = content;
 
             // Placeholder palette. Replace with real textures by registering
-            // loaded sprites under the same keys.
+            // loaded sprites under the same keys. Tile colors are overridden
+            // per-dungeon; species colors are registered when actors spawn.
             _content.RegisterSolid("tile.wall", new Color(58, 58, 72));
             _content.RegisterSolid("tile.floor", new Color(198, 189, 165));
-            _content.RegisterSolid("entity.player", new Color(64, 168, 90));
-            _content.RegisterSolid("entity.enemy", new Color(190, 66, 66));
+            _content.RegisterSolid("tile.stairs", new Color(96, 134, 222));
             _content.RegisterSolid("entity.unknown", Color.Magenta);
+            _content.RegisterSolid("ui.pixel", Color.White);
         }
 
         public void Draw(SpriteBatch spriteBatch, DungeonMap map)
@@ -45,16 +46,32 @@ namespace PMDRoguelike.Rendering
                 }
             }
 
+            Texture2D pixel = _content.GetTexture("ui.pixel");
             foreach (Actor actor in map.Actors)
             {
                 Texture2D texture = _content.GetTexture(actor.SpriteKey);
+                Vector2 drawPos = actor.RenderPosition + actor.VisualOffset;
+
+                // The player gets a white outline so they stand out among species colors.
+                if (actor is Player)
+                {
+                    spriteBatch.Draw(pixel, new Rectangle((int)drawPos.X, (int)drawPos.Y, tileSize, tileSize),
+                        Color.White * 0.9f);
+                }
+
                 // Slight inset so actors read as pieces standing on tiles.
                 var destination = new Rectangle(
-                    (int)actor.RenderPosition.X + 2,
-                    (int)actor.RenderPosition.Y + 2,
+                    (int)drawPos.X + 2,
+                    (int)drawPos.Y + 2,
                     tileSize - 4,
                     tileSize - 4);
                 spriteBatch.Draw(texture, destination, Color.White);
+
+                // Hit flash overlay.
+                if (actor.HitFlash > 0f)
+                {
+                    spriteBatch.Draw(pixel, destination, Color.White * (actor.HitFlash * 0.8f));
+                }
             }
         }
     }

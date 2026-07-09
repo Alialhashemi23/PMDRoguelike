@@ -1,43 +1,75 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using PMDRoguelike.Entities;
+using PMDRoguelike.Managers;
 using PMDRoguelike.Run;
 
 namespace PMDRoguelike.Rendering
 {
     /// <summary>
-    /// In-dungeon overlay: dungeon name, floor progress, turn count, and the
-    /// descend prompt. Drawn in screen space (no camera transform).
+    /// In-dungeon overlay: location, player vitals (HP bar, level, EXP), turn count,
+    /// and the descend prompt. Drawn in screen space (no camera transform).
     /// </summary>
     public class HudRenderer
     {
         private readonly SpriteFont _font;
+        private readonly Texture2D _pixel;
 
-        public HudRenderer(SpriteFont font)
+        public HudRenderer(GameContentManager content)
         {
-            _font = font;
+            _font = content.LoadFont("Default");
+            content.RegisterSolid("ui.pixel", Color.White);
+            _pixel = content.GetTexture("ui.pixel");
         }
 
-        public void Draw(SpriteBatch spriteBatch, RunManager run, int floorTurns, bool onStairs,
-            int viewportWidth, int viewportHeight)
+        public void Draw(SpriteBatch spriteBatch, RunManager run, Player player, int floorTurns,
+            bool onStairs, int viewportWidth, int viewportHeight)
         {
             if (_font == null) return;
 
             string location = $"{run.CurrentDungeon.Name}  —  F{run.FloorNumber}/{run.CurrentDungeon.Floors}";
             TextRenderer.DrawShadowed(spriteBatch, _font, location, new Vector2(12, 8), Color.White);
 
+            DrawPlayerVitals(spriteBatch, player);
+
             string turns = $"Turns: {run.TotalTurns + floorTurns}";
             Vector2 turnsSize = _font.MeasureString(turns);
             TextRenderer.DrawShadowed(spriteBatch, _font, turns,
                 new Vector2(viewportWidth - turnsSize.X - 12, 8), new Color(200, 200, 200));
+
+            TextRenderer.DrawShadowed(spriteBatch, _font, "Hold Shift: moves",
+                new Vector2(viewportWidth - 172, 40), new Color(140, 140, 150), 0.7f);
 
             if (onStairs)
             {
                 string prompt = "Press Enter to descend";
                 Vector2 promptSize = _font.MeasureString(prompt);
                 TextRenderer.DrawShadowed(spriteBatch, _font, prompt,
-                    new Vector2((viewportWidth - promptSize.X) / 2f, viewportHeight - promptSize.Y - 24),
+                    new Vector2((viewportWidth - promptSize.X) / 2f, viewportHeight - promptSize.Y - 140),
                     new Color(150, 190, 255));
             }
+        }
+
+        private void DrawPlayerVitals(SpriteBatch spriteBatch, Player player)
+        {
+            TextRenderer.DrawShadowed(spriteBatch, _font,
+                $"Lv.{player.Level} {player.DisplayName}", new Vector2(12, 40), Color.White, 0.8f);
+
+            const int barX = 12, barY = 68, barWidth = 180, barHeight = 12;
+            float pct = player.Stats.HP > 0 ? (float)player.CurrentHP / player.Stats.HP : 0f;
+            Color fill = pct > 0.5f ? new Color(96, 200, 96)
+                : pct > 0.25f ? new Color(230, 200, 80)
+                : new Color(220, 90, 90);
+
+            spriteBatch.Draw(_pixel, new Rectangle(barX - 1, barY - 1, barWidth + 2, barHeight + 2), Color.Black * 0.7f);
+            spriteBatch.Draw(_pixel, new Rectangle(barX, barY, barWidth, barHeight), new Color(60, 60, 66));
+            spriteBatch.Draw(_pixel, new Rectangle(barX, barY, (int)(barWidth * pct), barHeight), fill);
+
+            TextRenderer.DrawShadowed(spriteBatch, _font, $"{player.CurrentHP}/{player.Stats.HP}",
+                new Vector2(barX + barWidth + 8, barY - 4), Color.White, 0.7f);
+
+            TextRenderer.DrawShadowed(spriteBatch, _font, $"EXP {player.Exp}/{player.ExpToNextLevel}",
+                new Vector2(barX, barY + 16), new Color(170, 170, 180), 0.65f);
         }
     }
 }

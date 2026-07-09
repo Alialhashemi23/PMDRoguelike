@@ -1,37 +1,42 @@
 using Microsoft.Xna.Framework;
+using PMDRoguelike.Combat;
 using PMDRoguelike.Constants;
 using PMDRoguelike.Core;
+using PMDRoguelike.Data;
 using PMDRoguelike.Dungeon;
 using PMDRoguelike.Entities;
 using PMDRoguelike.Run;
 using PMDRoguelike.Turns;
+using PMDRoguelike.UI;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace PMDRoguelike.Debugging
 {
     /// <summary>
-    /// Headless verification of procgen and turn logic (no window needed).
-    /// Prints the generated floor as ASCII, flood-fills to prove every floor tile
-    /// is reachable, then simulates turns through the real TurnController and
-    /// checks movement invariants. Exit code 0 = pass.
+    /// Headless verification of procgen, turn logic, and combat (no window needed).
+    /// Prints the generated floor as ASCII, flood-fills to prove every floor tile is
+    /// reachable, simulates turns through the real TurnController, walks a full run
+    /// to victory, and asserts combat math golden values. Exit code 0 = pass.
     /// </summary>
     public static class SmokeTest
     {
         public static int Run(int seed)
         {
             GameConstants.Instance.LoadConstants();
+            GameData.Load();
 
             var rng = new Rng(seed);
             GeneratedFloor floor = new DungeonGenerator(rng).Generate();
             DungeonMap map = floor.Map;
 
-            var player = new Player(floor.PlayerSpawn);
+            var player = new Player(floor.PlayerSpawn, GameData.GetSpecies("charmander"), 5);
             map.Actors.Add(player);
             foreach (Point spawn in floor.EnemySpawns)
             {
-                map.Actors.Add(new Enemy(spawn));
+                map.Actors.Add(new Enemy(spawn, GameData.GetSpecies("rattata"), 3));
             }
 
             Console.WriteLine($"Seed {seed}: {map.Width}x{map.Height} floor, {map.Rooms.Count} rooms, {floor.EnemySpawns.Count} enemies");
@@ -40,16 +45,249 @@ namespace PMDRoguelike.Debugging
             bool ok = CheckConnectivity(map, floor.PlayerSpawn);
             ok &= SimulateTurns(map, player, rng, turns: 40);
             ok &= SimulateFullRun(seed);
+            ok &= CombatGoldenTests();
 
             Console.WriteLine(ok ? "SMOKE TEST PASSED" : "SMOKE TEST FAILED");
             return ok ? 0 : 1;
         }
 
+        // ------------------------------------------------------------------
+        // Combat golden tests
+        // ------------------------------------------------------------------
+
+        private static bool CombatGoldenTests()
+        {
+            bool ok = TypeChartTests();
+            ok &= StatCalcTests();
+            ok &= BattleScriptTest();
+            return ok;
+        }
+
+        private static bool Expect(bool condition, string what)
+        {
+            if (!condition) Console.WriteLine($"Combat: FAIL — {what}");
+            return condition;
+        }
+
+        private static bool TypeChartTests()
+        {
+            TypeChart chart = GameData.TypeChart;
+            bool ok = true;
+            ok &= Expect(chart.Effectiveness(PokemonType.Fire, PokemonType.Grass) == 2f, "Fire vs Grass should be 2x");
+            ok &= Expect(chart.Effectiveness(PokemonType.Fire, PokemonType.Water) == 0.5f, "Fire vs Water should be 0.5x");
+            ok &= Expect(chart.Effectiveness(PokemonType.Electric, PokemonType.Ground) == 0f, "Electric vs Ground should be 0x");
+            ok &= Expect(chart.Effectiveness(PokemonType.Normal, PokemonType.Ghost) == 0f, "Normal vs Ghost should be 0x");
+            ok &= Expect(chart.Effectiveness(PokemonType.Water, PokemonType.Normal) == 1f, "Water vs Normal should be 1x");
+
+            // Dual typing multiplies: Grass move vs Geodude (Rock/Ground) = 2 * 2 = 4.
+            var geodude = GameData.GetSpecies("geodude");
+            ok &= Expect(chart.Effectiveness(PokemonType.Grass, geodude.Types) == 4f, "Grass vs Rock/Ground should be 4x");
+
+            if (ok) Console.WriteLine("Combat: type chart golden values — OK");
+            return ok;
+        }
+
+        private static bool StatCalcTests()
+        {
+            // Charmander at L50 with no IV/EV: HP = 2*39*50/100 + 50 + 10 = 99, Atk = 2*52*50/100 + 5 = 57.
+            StatBlock stats = StatBlock.AtLevel(GameData.GetSpecies("charmander").BaseStats, 50);
+            bool ok = Expect(stats.HP == 99, $"Charmander L50 HP expected 99, got {stats.HP}");
+            ok &= Expect(stats.Attack == 57, $"Charmander L50 Atk expected 57, got {stats.Attack}");
+            ok &= Expect(stats.Speed == 70, $"Charmander L50 Spe expected 70, got {stats.Speed}");
+
+            if (ok) Console.WriteLine("Combat: stat formulas golden values — OK");
+            return ok;
+        }
+
+        /// <summary>
+        /// Scripted duel on a tiny handmade arena: player Charmander vs a Caterpie one
+        /// tile east. Exercises PP spend, damage application, faint/removal, EXP gain,
+        /// level-up, and the Struggle fallback — all through the real TurnController.
+        /// </summary>
+        private static bool BattleScriptTest()
+        {
+            var map = new DungeonMap(9, 9);
+            for (int x = 1; x < 8; x++)
+                for (int y = 1; y < 8; y++)
+                    map.SetTile(new Point(x, y), TileType.Floor);
+            map.StairsPosition = new Point(7, 7);
+            map.SetTile(map.StairsPosition, TileType.Stairs);
+
+            var rng = new Rng(1234);
+            var log = new MessageLog();
+            var player = new Player(new Point(3, 3), GameData.GetSpecies("charmander"), 5);
+            var enemy = new Enemy(new Point(4, 3), GameData.GetSpecies("caterpie"), 2);
+            map.Actors.Add(player);
+            map.Actors.Add(enemy);
+
+            var controller = new TurnController(map, player, rng, log);
+            bool ok = true;
+
+            // Face the enemy (bump east = turn, costs no turn) then use Ember (slot 1) until it faints.
+            ok &= Expect(!controller.ExecuteTurn(new MoveAction(Direction.East)), "bump into enemy should not consume a turn");
+            ok &= Expect(player.Facing == Direction.East, "bump should set facing east");
+
+            int emberPP = player.Moves[1].CurrentPP;
+            int startExp = player.Exp;
+            int startLevel = player.Level;
+
+            for (int i = 0; i < 10 && map.Actors.Contains(enemy); i++)
+            {
+                ok &= Expect(controller.ExecuteTurn(new AttackAction(1)), "attack turn should execute");
+            }
+
+            ok &= Expect(!map.Actors.Contains(enemy), "caterpie should faint and be removed");
+            ok &= Expect(player.Moves[1].CurrentPP < emberPP, "Ember PP should be spent");
+            ok &= Expect(player.Exp > startExp || player.Level > startLevel, "EXP should be awarded on faint");
+            ok &= Expect(log.Messages.Any(m => m.Contains("super effective")), "Ember vs Caterpie should log super effective");
+            ok &= Expect(log.Messages.Any(m => m.Contains("fainted")), "faint should be logged");
+
+            // Level-up check: feed EXP directly until a level passes.
+            int before = player.Level;
+            player.AddExp(Player.ExpRequired(player.Level) + 5, log);
+            ok &= Expect(player.Level > before, "AddExp past threshold should level up");
+            ok &= Expect(log.Messages.Any(m => m.Contains("grew to level")), "level-up should be logged");
+
+            // Struggle fallback: drain all PP, attack again with a fresh target.
+            foreach (MoveSlot slot in player.Moves) slot.CurrentPP = 0;
+            var punchingBag = new Enemy(new Point(player.GridPosition.X + 1, player.GridPosition.Y),
+                GameData.GetSpecies("geodude"), 2);
+            map.Actors.Add(punchingBag);
+            player.Facing = Direction.East;
+            int hpBefore = player.CurrentHP;
+            ok &= Expect(controller.ExecuteTurn(new AttackAction(0)), "attack with no PP should still execute (Struggle)");
+            ok &= Expect(log.Messages.Any(m => m.Contains("Struggle")), "Struggle should be used when out of PP");
+            ok &= Expect(player.CurrentHP <= hpBefore, "Struggle recoil should not heal the attacker");
+
+            if (ok) Console.WriteLine("Combat: scripted battle (PP, faint, EXP, level-up, Struggle) — OK");
+            return ok;
+        }
+
+        // ------------------------------------------------------------------
+        // Procgen / movement checks (Phases 1-2)
+        // ------------------------------------------------------------------
+
+        private static void PrintMap(DungeonMap map)
+        {
+            var sb = new StringBuilder();
+            for (int y = 0; y < map.Height; y++)
+            {
+                for (int x = 0; x < map.Width; x++)
+                {
+                    var p = new Point(x, y);
+                    Actor actor = map.GetActorAt(p);
+                    sb.Append(actor switch
+                    {
+                        Player => '@',
+                        Enemy => 'e',
+                        _ => map.GetTile(p).Type switch
+                        {
+                            TileType.Stairs => '>',
+                            TileType.Floor => '.',
+                            _ => '#'
+                        }
+                    });
+                }
+                sb.AppendLine();
+            }
+            Console.Write(sb.ToString());
+        }
+
+        /// <summary>Every floor tile must be reachable from the player spawn (4-directional BFS).</summary>
+        private static bool CheckConnectivity(DungeonMap map, Point start)
+        {
+            int totalFloor = 0;
+            for (int x = 0; x < map.Width; x++)
+                for (int y = 0; y < map.Height; y++)
+                    if (map.GetTile(new Point(x, y)).IsWalkable) totalFloor++;
+
+            var visited = new HashSet<Point> { start };
+            var queue = new Queue<Point>();
+            queue.Enqueue(start);
+            Point[] cardinals = { new(0, -1), new(0, 1), new(-1, 0), new(1, 0) };
+
+            while (queue.Count > 0)
+            {
+                Point current = queue.Dequeue();
+                foreach (Point offset in cardinals)
+                {
+                    Point next = current + offset;
+                    if (map.IsWalkable(next) && visited.Add(next)) queue.Enqueue(next);
+                }
+            }
+
+            bool ok = visited.Count == totalFloor;
+            Console.WriteLine($"Connectivity: {visited.Count}/{totalFloor} floor tiles reachable from spawn — {(ok ? "OK" : "FAIL")}");
+            return ok;
+        }
+
+        /// <summary>
+        /// Drive the real TurnController with random (legal) player moves and check
+        /// that no actor ever ends up inside a wall or sharing a tile. Enemies now
+        /// fight back, so the loop also tolerates (and reports) a player defeat.
+        /// </summary>
+        private static bool SimulateTurns(DungeonMap map, Player player, Rng rng, int turns)
+        {
+            var controller = new TurnController(map, player, rng, new MessageLog());
+            Direction[] allDirections =
+            {
+                Direction.North, Direction.NorthEast, Direction.East, Direction.SouthEast,
+                Direction.South, Direction.SouthWest, Direction.West, Direction.NorthWest
+            };
+
+            int executed = 0;
+            for (int i = 0; i < turns; i++)
+            {
+                if (controller.PlayerDefeated)
+                {
+                    Console.WriteLine($"Turn simulation: player was defeated after {executed} turns (valid outcome)");
+                    return true;
+                }
+
+                var options = new List<Direction>();
+                foreach (Direction dir in allDirections)
+                {
+                    Point target = player.GridPosition + dir.ToOffset();
+                    if (map.CanMove(player.GridPosition, dir) && !map.IsOccupied(target)) options.Add(dir);
+                }
+
+                TurnAction action = options.Count > 0 ? new MoveAction(rng.Pick(options)) : new WaitAction();
+                if (controller.ExecuteTurn(action)) executed++;
+
+                string violation = FindInvariantViolation(map);
+                if (violation != null)
+                {
+                    Console.WriteLine($"Turn simulation: FAIL on turn {i + 1} — {violation}");
+                    return false;
+                }
+            }
+
+            Console.WriteLine($"Turn simulation: {executed}/{turns} turns executed, invariants held — OK");
+            return true;
+        }
+
+        private static string FindInvariantViolation(DungeonMap map)
+        {
+            var seen = new HashSet<Point>();
+            foreach (Actor actor in map.Actors)
+            {
+                if (!map.IsWalkable(actor.GridPosition))
+                    return $"{actor.GetType().Name} is standing in a wall at {actor.GridPosition}";
+                if (!seen.Add(actor.GridPosition))
+                    return $"two actors share tile {actor.GridPosition}";
+            }
+            return null;
+        }
+
+        // ------------------------------------------------------------------
+        // Full-run descent (Phase 2)
+        // ------------------------------------------------------------------
+
         /// <summary>
         /// Walk an entire run headlessly: every floor of every defined dungeon,
         /// pathing the player to the stairs through the real TurnController and
         /// advancing through the RunManager until victory. Enemies are omitted so
-        /// pathing is deterministic (they can't be fought until the combat phase).
+        /// pathing is deterministic.
         /// </summary>
         private static bool SimulateFullRun(int seed)
         {
@@ -73,9 +311,9 @@ namespace PMDRoguelike.Debugging
                     return false;
                 }
 
-                var player = new Player(floor.PlayerSpawn);
+                var player = new Player(floor.PlayerSpawn, GameData.GetSpecies("charmander"), 5);
                 map.Actors.Add(player);
-                var controller = new TurnController(map, player, rng);
+                var controller = new TurnController(map, player, rng, new MessageLog());
 
                 List<Direction> path = FindPath(map, floor.PlayerSpawn, map.StairsPosition);
                 if (path == null)
@@ -151,111 +389,6 @@ namespace PMDRoguelike.Debugging
             }
             path.Reverse();
             return path;
-        }
-
-        private static void PrintMap(DungeonMap map)
-        {
-            var sb = new StringBuilder();
-            for (int y = 0; y < map.Height; y++)
-            {
-                for (int x = 0; x < map.Width; x++)
-                {
-                    var p = new Point(x, y);
-                    Actor actor = map.GetActorAt(p);
-                    sb.Append(actor switch
-                    {
-                        Player => '@',
-                        Enemy => 'e',
-                        _ => map.GetTile(p).Type switch
-                        {
-                            TileType.Stairs => '>',
-                            TileType.Floor => '.',
-                            _ => '#'
-                        }
-                    });
-                }
-                sb.AppendLine();
-            }
-            Console.Write(sb.ToString());
-        }
-
-        /// <summary>Every floor tile must be reachable from the player spawn (4-directional BFS).</summary>
-        private static bool CheckConnectivity(DungeonMap map, Point start)
-        {
-            int totalFloor = 0;
-            for (int x = 0; x < map.Width; x++)
-                for (int y = 0; y < map.Height; y++)
-                    if (map.GetTile(new Point(x, y)).IsWalkable) totalFloor++;
-
-            var visited = new HashSet<Point> { start };
-            var queue = new Queue<Point>();
-            queue.Enqueue(start);
-            Point[] cardinals = { new(0, -1), new(0, 1), new(-1, 0), new(1, 0) };
-
-            while (queue.Count > 0)
-            {
-                Point current = queue.Dequeue();
-                foreach (Point offset in cardinals)
-                {
-                    Point next = current + offset;
-                    if (map.IsWalkable(next) && visited.Add(next)) queue.Enqueue(next);
-                }
-            }
-
-            bool ok = visited.Count == totalFloor;
-            Console.WriteLine($"Connectivity: {visited.Count}/{totalFloor} floor tiles reachable from spawn — {(ok ? "OK" : "FAIL")}");
-            return ok;
-        }
-
-        /// <summary>
-        /// Drive the real TurnController with random (legal) player moves and check
-        /// that no actor ever ends up inside a wall or sharing a tile.
-        /// </summary>
-        private static bool SimulateTurns(DungeonMap map, Player player, Rng rng, int turns)
-        {
-            var controller = new TurnController(map, player, rng);
-            Direction[] allDirections =
-            {
-                Direction.North, Direction.NorthEast, Direction.East, Direction.SouthEast,
-                Direction.South, Direction.SouthWest, Direction.West, Direction.NorthWest
-            };
-
-            int executed = 0;
-            for (int i = 0; i < turns; i++)
-            {
-                var options = new List<Direction>();
-                foreach (Direction dir in allDirections)
-                {
-                    Point target = player.GridPosition + dir.ToOffset();
-                    if (map.CanMove(player.GridPosition, dir) && !map.IsOccupied(target)) options.Add(dir);
-                }
-
-                TurnAction action = options.Count > 0 ? new MoveAction(rng.Pick(options)) : new WaitAction();
-                if (controller.ExecuteTurn(action)) executed++;
-
-                string violation = FindInvariantViolation(map);
-                if (violation != null)
-                {
-                    Console.WriteLine($"Turn simulation: FAIL on turn {i + 1} — {violation}");
-                    return false;
-                }
-            }
-
-            Console.WriteLine($"Turn simulation: {executed}/{turns} turns executed, invariants held — OK");
-            return true;
-        }
-
-        private static string FindInvariantViolation(DungeonMap map)
-        {
-            var seen = new HashSet<Point>();
-            foreach (Actor actor in map.Actors)
-            {
-                if (!map.IsWalkable(actor.GridPosition))
-                    return $"{actor.GetType().Name} is standing in a wall at {actor.GridPosition}";
-                if (!seen.Add(actor.GridPosition))
-                    return $"two actors share tile {actor.GridPosition}";
-            }
-            return null;
         }
     }
 }

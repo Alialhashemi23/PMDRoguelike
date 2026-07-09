@@ -1,8 +1,10 @@
 using Microsoft.Xna.Framework;
+using PMDRoguelike.Combat;
 using PMDRoguelike.Core;
 using PMDRoguelike.Dungeon;
 using PMDRoguelike.Entities;
 using PMDRoguelike.Managers;
+using PMDRoguelike.UI;
 using System.Collections.Generic;
 
 namespace PMDRoguelike.Turns
@@ -11,30 +13,39 @@ namespace PMDRoguelike.Turns
     {
         /// <summary>Waiting for the player to commit an action.</summary>
         AwaitingInput,
-        /// <summary>Slide animations from the last turn are playing out.</summary>
+        /// <summary>Slide/attack animations from the last turn are playing out.</summary>
         Animating
     }
 
     /// <summary>
     /// Drives the turn loop: the player commits an action, every enemy then decides
-    /// theirs, all resulting moves animate in parallel, and control returns to the
+    /// theirs, all resulting animations play in parallel, and control returns to the
     /// player. Turn resolution itself (ExecuteTurn) is graphics-free so it can run
     /// headlessly in tests.
     /// </summary>
     public class TurnController
     {
+        private const int RegenIntervalTurns = 4;
+
         private readonly DungeonMap _map;
         private readonly Player _player;
         private readonly Rng _rng;
+        private readonly MessageLog _log;
+        private readonly CombatResolver _combat;
 
         public TurnPhase Phase { get; private set; } = TurnPhase.AwaitingInput;
         public int TurnCount { get; private set; }
 
-        public TurnController(DungeonMap map, Player player, Rng rng)
+        /// <summary>True once the player has fainted; the run is over.</summary>
+        public bool PlayerDefeated => _combat.PlayerFainted;
+
+        public TurnController(DungeonMap map, Player player, Rng rng, MessageLog log)
         {
             _map = map;
             _player = player;
             _rng = rng;
+            _log = log;
+            _combat = new CombatResolver(map, log, rng);
         }
 
         /// <summary>Per-frame driver used by the game loop (input + animation).</summary>
@@ -55,6 +66,7 @@ namespace PMDRoguelike.Turns
                     break;
 
                 case TurnPhase.AwaitingInput:
+                    if (PlayerDefeated) return;
                     TurnAction action = _player.ReadInput(KeyboardManager.Instance, deltaMs);
                     if (action != null) ExecuteTurn(action);
                     break;
@@ -63,36 +75,77 @@ namespace PMDRoguelike.Turns
 
         /// <summary>
         /// Resolve one full turn from the player's chosen action. Returns false when
-        /// the action was illegal (e.g. walking into a wall) and no turn was consumed.
-        /// Pure game logic — no graphics or input dependencies.
+        /// the action was illegal (walking into a wall, using an empty move) and no
+        /// turn was consumed. Pure game logic — no graphics or input dependencies.
         /// </summary>
         public bool ExecuteTurn(TurnAction playerAction)
         {
-            // Tiles that will be occupied once this turn's moves finish.
-            var reservedTiles = new HashSet<Point>();
+            if (PlayerDefeated) return false;
 
-            if (playerAction is MoveAction playerMove)
+            switch (playerAction)
             {
-                // Bumping a wall turns the player in place without consuming a turn.
-                _player.Facing = playerMove.Direction;
+                case MoveAction move:
+                {
+                    // Bumping a wall turns the player in place without consuming a turn.
+                    _player.Facing = move.Direction;
 
-                Point target = _player.GridPosition + playerMove.Direction.ToOffset();
-                if (!_map.CanMove(_player.GridPosition, playerMove.Direction) || _map.IsOccupied(target))
-                    return false;
+                    Point target = _player.GridPosition + move.Direction.ToOffset();
+                    if (!_map.CanMove(_player.GridPosition, move.Direction) || _map.IsOccupied(target))
+                        return false;
 
-                _player.BeginMove(target);
+                    _player.BeginMove(target);
+                    break;
+                }
+                case AttackAction attack:
+                {
+                    MoveSlot slot = ResolvePlayerMoveSlot(attack.MoveIndex);
+                    if (slot == null) return false;
+                    _combat.ExecuteAttack(_player, slot);
+                    break;
+                }
+                // WaitAction: nothing to do, the turn simply passes.
             }
-            reservedTiles.Add(_player.GridPosition);
 
-            ResolveEnemyTurns(reservedTiles);
+            if (!PlayerDefeated) ResolveEnemyTurns();
 
             TurnCount++;
+
+            // PMD-style slow regen from walking around.
+            if (!PlayerDefeated && TurnCount % RegenIntervalTurns == 0) _player.Heal(1);
+
             Phase = TurnPhase.Animating;
             return true;
         }
 
-        private void ResolveEnemyTurns(HashSet<Point> reservedTiles)
+        /// <summary>
+        /// Validate an attack request: falls back to Struggle when everything is out
+        /// of PP, refuses (with a log line) when just the chosen move is empty.
+        /// </summary>
+        private MoveSlot ResolvePlayerMoveSlot(int index)
         {
+            if (_player.Moves.Count == 0 || _player.AllMovesOutOfPP)
+            {
+                _log.Add($"{_player.DisplayName} has no PP left...");
+                return new MoveSlot(Data.GameData.Struggle);
+            }
+
+            if (index < 0 || index >= _player.Moves.Count) return null;
+
+            MoveSlot slot = _player.Moves[index];
+            if (!slot.HasPP)
+            {
+                _log.Add($"{slot.Move.Name} is out of PP!");
+                return null;
+            }
+
+            return slot;
+        }
+
+        private void ResolveEnemyTurns()
+        {
+            // Tiles that will be occupied once this turn's moves finish.
+            var reservedTiles = new HashSet<Point> { _player.GridPosition };
+
             // Tiles of enemies that haven't decided yet: they might stay put,
             // so nobody may move into them. A tile just vacated by an earlier
             // mover is fair game (PMD-style follow chains).
@@ -109,16 +162,25 @@ namespace PMDRoguelike.Turns
 
             foreach (Enemy enemy in enemies)
             {
+                if (PlayerDefeated) break;
+
                 undecidedTiles.Remove(enemy.GridPosition);
 
                 bool IsTileFree(Point p) => !reservedTiles.Contains(p) && !undecidedTiles.Contains(p);
 
-                TurnAction action = enemy.DecideAction(_map, _player.GridPosition, IsTileFree, _rng);
-                if (action is MoveAction move)
+                TurnAction action = enemy.DecideAction(_map, _player, IsTileFree, _rng);
+                switch (action)
                 {
-                    Point target = enemy.GridPosition + move.Direction.ToOffset();
-                    enemy.Facing = move.Direction;
-                    enemy.BeginMove(target);
+                    case MoveAction move:
+                    {
+                        Point target = enemy.GridPosition + move.Direction.ToOffset();
+                        enemy.Facing = move.Direction;
+                        enemy.BeginMove(target);
+                        break;
+                    }
+                    case AttackAction attack:
+                        _combat.ExecuteAttack(enemy, enemy.Moves[attack.MoveIndex]);
+                        break;
                 }
 
                 reservedTiles.Add(enemy.GridPosition);

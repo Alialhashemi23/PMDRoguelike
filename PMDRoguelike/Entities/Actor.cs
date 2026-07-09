@@ -1,20 +1,60 @@
 using Microsoft.Xna.Framework;
-using PMDRoguelike.Core;
+using PMDRoguelike.Combat;
+using PMDRoguelike.Data;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace PMDRoguelike.Entities
 {
     /// <summary>
-    /// An entity that participates in the turn order (player, enemies).
-    /// Stats are placeholders until the combat phase.
+    /// An entity that participates in turns and combat: a Pokémon with a species,
+    /// level-derived stats, HP, and up to four moves.
     /// </summary>
     public abstract class Actor : Entity
     {
-        public Direction Facing { get; set; } = Direction.South;
+        public const int MaxMoves = 4;
 
-        // Placeholder stat block — replaced by full Pokémon stats in the combat phase.
-        public int Level { get; set; } = 1;
-        public int Speed { get; set; } = 10;
+        public SpeciesDefinition Species { get; }
+        public int Level { get; protected set; }
+        public StatBlock Stats { get; protected set; }
+        public int CurrentHP { get; protected set; }
+        public List<MoveSlot> Moves { get; } = new List<MoveSlot>();
 
-        protected Actor(Point gridPosition) : base(gridPosition) { }
+        public bool IsFainted => CurrentHP <= 0;
+        public string DisplayName => Species.Name;
+        public bool AllMovesOutOfPP => Moves.All(slot => !slot.HasPP);
+
+        protected Actor(Point gridPosition, SpeciesDefinition species, int level) : base(gridPosition)
+        {
+            Species = species;
+            Level = Math.Max(1, level);
+            Stats = StatBlock.AtLevel(species.BaseStats, Level);
+            CurrentHP = Stats.HP;
+            SpriteKey = $"species.{species.Id}";
+
+            // Know the last four moves reachable at this level.
+            foreach (LearnsetEntry entry in species.Learnset.Where(e => e.Level <= Level).TakeLast(MaxMoves))
+            {
+                Moves.Add(new MoveSlot(GameData.GetMove(entry.Move)));
+            }
+        }
+
+        public void TakeDamage(int amount) => CurrentHP = Math.Max(0, CurrentHP - Math.Max(0, amount));
+
+        public void Heal(int amount) => CurrentHP = Math.Min(Stats.HP, CurrentHP + Math.Max(0, amount));
+
+        public void RestoreAllPP()
+        {
+            foreach (MoveSlot slot in Moves) slot.CurrentPP = slot.Move.PP;
+        }
+
+        /// <summary>Recompute stats for the current level; HP rises by the max-HP gain (PMD-style).</summary>
+        protected void RecalculateStats()
+        {
+            int previousMax = Stats.HP;
+            Stats = StatBlock.AtLevel(Species.BaseStats, Level);
+            CurrentHP = Math.Min(Stats.HP, CurrentHP + Math.Max(0, Stats.HP - previousMax));
+        }
     }
 }

@@ -3,12 +3,14 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using PMDRoguelike.Constants;
 using PMDRoguelike.Core;
+using PMDRoguelike.Data;
 using PMDRoguelike.Dungeon;
 using PMDRoguelike.Entities;
 using PMDRoguelike.Managers;
 using PMDRoguelike.Rendering;
 using PMDRoguelike.Run;
 using PMDRoguelike.Turns;
+using PMDRoguelike.UI;
 
 namespace PMDRoguelike.States
 {
@@ -18,6 +20,10 @@ namespace PMDRoguelike.States
     /// </summary>
     public class DungeonState : GameState
     {
+        // Starter species until the selection screen arrives in Phase 8.
+        private const string StarterSpecies = "charmander";
+        private const int StarterLevel = 5;
+
         private RunManager _run;
         private DungeonMap _map;
         private Player _player;
@@ -25,18 +31,22 @@ namespace PMDRoguelike.States
         private Camera _camera;
         private DungeonRenderer _renderer;
         private HudRenderer _hud;
+        private MessageLog _log;
+        private MoveLearnPrompt _learnPrompt;
 
         public DungeonState(PMDRogueGame game) : base(game) { }
 
         public override void Enter()
         {
             _renderer = new DungeonRenderer(Game.GameContent);
-            _hud = new HudRenderer(Game.GameContent.LoadFont("Default"));
+            _hud = new HudRenderer(Game.GameContent);
+            _log = new MessageLog();
             _run = new RunManager(DungeonRegistry.Load());
             BuildFloor();
+            _log.Add($"Entered {_run.CurrentDungeon.Name}!");
         }
 
-        /// <summary>Generate the current floor of the current dungeon and spawn actors.</summary>
+        /// <summary>Generate the current floor of the current dungeon and (re)spawn actors.</summary>
         private void BuildFloor()
         {
             DungeonDefinition dungeon = _run.CurrentDungeon;
@@ -45,16 +55,37 @@ namespace PMDRoguelike.States
             GeneratedFloor floor = new DungeonGenerator(Game.Rng).Generate(dungeon);
             _map = floor.Map;
 
-            _player = new Player(floor.PlayerSpawn);
+            // The player persists across floors (level, HP, PP); only the floor is new.
+            if (_player == null)
+            {
+                SpeciesDefinition starter = GameData.GetSpecies(StarterSpecies);
+                _player = new Player(floor.PlayerSpawn, starter, StarterLevel);
+                RegisterSpeciesColor(starter);
+            }
+            else
+            {
+                _player.SnapTo(floor.PlayerSpawn);
+            }
             _map.Actors.Add(_player);
+
             foreach (Point spawn in floor.EnemySpawns)
             {
-                _map.Actors.Add(new Enemy(spawn));
+                string speciesId = dungeon.EnemySpecies.Count > 0
+                    ? Game.Rng.Pick(dungeon.EnemySpecies)
+                    : "rattata";
+                SpeciesDefinition species = GameData.GetSpecies(speciesId);
+                RegisterSpeciesColor(species);
+
+                int level = Game.Rng.Next(dungeon.EnemyLevels.Min, dungeon.EnemyLevels.Max + 1);
+                _map.Actors.Add(new Enemy(spawn, species, level));
             }
 
-            _turns = new TurnController(_map, _player, Game.Rng);
+            _turns = new TurnController(_map, _player, Game.Rng, _log);
             _camera = new Camera();
         }
+
+        private void RegisterSpeciesColor(SpeciesDefinition species) =>
+            Game.GameContent.RegisterSolid($"species.{species.Id}", ColorUtil.FromHex(species.Color));
 
         /// <summary>Placeholder tile colors per dungeon, until real tilesets in the sprite phase.</summary>
         private void ApplyPalette(DungeonDefinition dungeon)
@@ -68,16 +99,30 @@ namespace PMDRoguelike.States
         {
             KeyboardManager keyboard = KeyboardManager.Instance;
 
-            // Debug helpers until later phases wire these properly:
-            // R regenerates the current floor, F9 fakes a defeat (combat arrives in Phase 3).
-            if (keyboard.WasKeyJustPressed(Keys.R)) BuildFloor();
-            if (keyboard.WasKeyJustPressed(Keys.F9))
+            // Modal move-learn prompt blocks everything else.
+            if (_learnPrompt != null)
             {
-                Game.States.ChangeState(new GameOverState(Game));
+                if (_learnPrompt.Update(keyboard)) _learnPrompt = null;
                 return;
             }
 
+            // Debug helper until stairs are the only path: R regenerates the current floor.
+            if (keyboard.WasKeyJustPressed(Keys.R)) BuildFloor();
+
             _turns.Update(gameTime);
+
+            if (_turns.PlayerDefeated)
+            {
+                Game.States.ChangeState(new GameOverState(Game,
+                    $"Defeated in {_run.CurrentDungeon.Name} F{_run.FloorNumber} at Lv.{_player.Level}."));
+                return;
+            }
+
+            if (_player.PendingMoveLearns.Count > 0)
+            {
+                _learnPrompt = new MoveLearnPrompt(_player, _log);
+                return;
+            }
 
             if (CanDescend() && (keyboard.WasKeyJustPressed(Keys.Enter) || keyboard.WasKeyJustPressed(Keys.Z)))
             {
@@ -106,13 +151,21 @@ namespace PMDRoguelike.States
                 return;
             }
 
+            // A short rest at the stairs: PP refills, HP carries over.
+            _player.RestoreAllPP();
             BuildFloor();
+
+            _log.Add(result == AdvanceResult.NextDungeon
+                ? $"Entered {_run.CurrentDungeon.Name}!"
+                : $"{_run.CurrentDungeon.Name} — floor {_run.FloorNumber}.");
         }
 
         public override void Draw(GameTime gameTime)
         {
             SpriteBatch spriteBatch = Game.SpriteBatch;
             var viewport = Game.GraphicsDevice.Viewport;
+            SpriteFont font = Game.GameContent.LoadFont("Default");
+            Texture2D pixel = Game.GameContent.GetTexture("ui.pixel");
 
             Matrix view = _camera.GetViewMatrix(viewport.Width, viewport.Height);
             spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: view);
@@ -120,7 +173,15 @@ namespace PMDRoguelike.States
             spriteBatch.End();
 
             spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-            _hud.Draw(spriteBatch, _run, _turns.TurnCount, CanDescend(), viewport.Width, viewport.Height);
+            _hud.Draw(spriteBatch, _run, _player, _turns.TurnCount, CanDescend(), viewport.Width, viewport.Height);
+            _log.Draw(spriteBatch, font, pixel, viewport.Width, viewport.Height);
+
+            if (KeyboardManager.Instance.IsKeyDown(Keys.LeftShift) || KeyboardManager.Instance.IsKeyDown(Keys.RightShift))
+            {
+                MovePanel.Draw(spriteBatch, font, pixel, _player, viewport.Width);
+            }
+
+            _learnPrompt?.Draw(spriteBatch, font, pixel, viewport.Width, viewport.Height);
             spriteBatch.End();
         }
     }

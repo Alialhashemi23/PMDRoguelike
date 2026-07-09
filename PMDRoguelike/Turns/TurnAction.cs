@@ -23,4 +23,15 @@ namespace PMDRoguelike.Turns
     public sealed class WaitAction : TurnAction
     {
     }
+
+    /// <summary>Use the move in the given slot (0-3) along the actor's facing.</summary>
+    public sealed class AttackAction : TurnAction
+    {
+        public int MoveIndex { get; }
+
+        public AttackAction(int moveIndex)
+        {
+            MoveIndex = moveIndex;
+        }
+    }
 }

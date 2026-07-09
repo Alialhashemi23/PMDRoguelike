@@ -9,7 +9,7 @@
       "wallColor": "#2F4A33",
       "floorColor": "#A9C48E",
       "enemyLevels": { "min": 2, "max": 5 },
-      "enemySpecies": []
+      "enemySpecies": ["caterpie", "pidgey", "rattata", "oddish"]
     },
     {
       "id": "ember-caverns",
@@ -20,7 +20,7 @@
       "wallColor": "#4A2E28",
       "floorColor": "#C9A184",
       "enemyLevels": { "min": 6, "max": 10 },
-      "enemySpecies": []
+      "enemySpecies": ["geodude", "growlithe", "machop", "zubat"]
     },
     {
       "id": "tempest-spire",
@@ -31,7 +31,7 @@
       "wallColor": "#33334F",
       "floorColor": "#9FA6C4",
       "enemyLevels": { "min": 11, "max": 16 },
-      "enemySpecies": []
+      "enemySpecies": ["magnemite", "abra", "gastly", "pikachu"]
     }
   ]
 }

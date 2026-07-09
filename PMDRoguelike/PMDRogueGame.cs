@@ -31,6 +31,7 @@ namespace PMDRoguelike
         protected override void Initialize()
         {
             GameConstants.Instance.LoadConstants();
+            Data.GameData.Load();
 
             _graphics.PreferredBackBufferWidth = GameConstants.Instance.WindowWidth;
             _graphics.PreferredBackBufferHeight = GameConstants.Instance.WindowHeight;
