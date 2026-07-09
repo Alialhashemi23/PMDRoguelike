@@ -42,18 +42,18 @@ placeholder rendering + camera, constants pipeline, headless smoke test (`--dump
 
 ---
 
-## Phase 2: Run Skeleton — Stairs, Floors & Game States
+## ✅ Phase 2: Run Skeleton — Stairs, Floors & Game States — DONE
 
 **Goal:** the *shape* of a full run exists before any combat: descend floors, cross dungeons,
 reach a stubbed victory; a stubbed game-over exists for later.
 
-- [ ] `GameState` scene machine (replaces the old empty SceneManager idea): `DungeonState`,
+- [x] `GameState` scene machine (replaces the old empty SceneManager idea): `DungeonState`,
       placeholder `GameOverState` / `VictoryState`; game class delegates Update/Draw to the active state
-- [ ] Stairs tile: generator places stairs in a room far from spawn; stepping on them + confirm key descends
-- [ ] Dungeon definitions (JSON in `Content/Data/`): name, floor count, tile palette, enemy table stub — 3 dungeons defined
-- [ ] `RunManager`: tracks current dungeon/floor/turn count; floor transition regenerates the floor; last floor → next dungeon; dungeon 3 → VictoryState stub
-- [ ] Minimal HUD: dungeon name + floor number (bitmap font or SpriteFont in content pipeline)
-- [ ] Smoke test: simulate descending through all floors of all 3 dungeons headlessly
+- [x] Stairs tile: generator places stairs in a room far from spawn; stepping on them + confirm key descends
+- [x] Dungeon definitions (JSON in `Content/Data/`): name, floor count, tile palette, enemy table stub — 3 dungeons defined
+- [x] `RunManager`: tracks current dungeon/floor/turn count; floor transition regenerates the floor; last floor → next dungeon; dungeon 3 → VictoryState stub
+- [x] Minimal HUD: dungeon name + floor number (bitmap font or SpriteFont in content pipeline)
+- [x] Smoke test: simulate descending through all floors of all 3 dungeons headlessly
 
 **Playable check:** walk to stairs, descend through 3 dungeons, hit the victory stub. Press R still regenerates.
 

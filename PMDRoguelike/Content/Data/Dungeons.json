@@ -1,0 +1,37 @@
+{
+  "dungeons": [
+    {
+      "id": "verdant-hollow",
+      "name": "Verdant Hollow",
+      "floors": 4,
+      "floorWidth": 46,
+      "floorHeight": 32,
+      "wallColor": "#2F4A33",
+      "floorColor": "#A9C48E",
+      "enemyLevels": { "min": 2, "max": 5 },
+      "enemySpecies": []
+    },
+    {
+      "id": "ember-caverns",
+      "name": "Ember Caverns",
+      "floors": 4,
+      "floorWidth": 52,
+      "floorHeight": 36,
+      "wallColor": "#4A2E28",
+      "floorColor": "#C9A184",
+      "enemyLevels": { "min": 6, "max": 10 },
+      "enemySpecies": []
+    },
+    {
+      "id": "tempest-spire",
+      "name": "Tempest Spire",
+      "floors": 5,
+      "floorWidth": 56,
+      "floorHeight": 40,
+      "wallColor": "#33334F",
+      "floorColor": "#9FA6C4",
+      "enemyLevels": { "min": 11, "max": 16 },
+      "enemySpecies": []
+    }
+  ]
+}

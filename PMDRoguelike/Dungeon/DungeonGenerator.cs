@@ -29,20 +29,57 @@ namespace PMDRoguelike.Dungeon
             _rng = rng;
         }
 
-        public GeneratedFloor Generate()
+        /// <summary>
+        /// Generate one floor. When a dungeon definition is given, its dimensions
+        /// override the global defaults from GameConstants.
+        /// </summary>
+        public GeneratedFloor Generate(DungeonDefinition definition = null)
         {
             DungeonConstants cfg = GameConstants.Instance.Data.WorldGeneration.Dungeons;
             SpawningConstants spawnCfg = GameConstants.Instance.Data.WorldGeneration.Spawning;
 
-            var map = new DungeonMap(cfg.FloorWidth, cfg.FloorHeight);
+            int width = definition?.FloorWidth > 0 ? definition.FloorWidth : cfg.FloorWidth;
+            int height = definition?.FloorHeight > 0 ? definition.FloorHeight : cfg.FloorHeight;
+            var map = new DungeonMap(width, height);
 
             PlaceRooms(map, cfg);
             ConnectRooms(map);
 
             Point playerSpawn = RandomPointInRoom(map.Rooms[0]);
-            List<Point> enemySpawns = PickEnemySpawns(map, spawnCfg, playerSpawn);
+            Point stairs = PlaceStairs(map, playerSpawn);
+            List<Point> enemySpawns = PickEnemySpawns(map, spawnCfg, playerSpawn, stairs);
 
             return new GeneratedFloor { Map = map, PlayerSpawn = playerSpawn, EnemySpawns = enemySpawns };
+        }
+
+        /// <summary>
+        /// Put the stairs in the room farthest from the player's starting room
+        /// so every floor asks for some traversal.
+        /// </summary>
+        private Point PlaceStairs(DungeonMap map, Point playerSpawn)
+        {
+            Rectangle spawnRoom = map.Rooms[0];
+            Rectangle stairsRoom = spawnRoom;
+            int bestDistanceSq = -1;
+            foreach (Rectangle room in map.Rooms)
+            {
+                int dx = room.Center.X - spawnRoom.Center.X;
+                int dy = room.Center.Y - spawnRoom.Center.Y;
+                int distanceSq = dx * dx + dy * dy;
+                if (distanceSq > bestDistanceSq)
+                {
+                    bestDistanceSq = distanceSq;
+                    stairsRoom = room;
+                }
+            }
+
+            Point stairs = RandomPointInRoom(stairsRoom);
+            for (int attempts = 0; stairs == playerSpawn && attempts < 50; attempts++)
+                stairs = RandomPointInRoom(stairsRoom);
+
+            map.SetTile(stairs, TileType.Stairs);
+            map.StairsPosition = stairs;
+            return stairs;
         }
 
         private void PlaceRooms(DungeonMap map, DungeonConstants cfg)
@@ -122,7 +159,7 @@ namespace PMDRoguelike.Dungeon
         private Point RandomPointInRoom(Rectangle room) =>
             new Point(_rng.Next(room.Left, room.Right), _rng.Next(room.Top, room.Bottom));
 
-        private List<Point> PickEnemySpawns(DungeonMap map, SpawningConstants cfg, Point playerSpawn)
+        private List<Point> PickEnemySpawns(DungeonMap map, SpawningConstants cfg, Point playerSpawn, Point stairs)
         {
             var spawns = new List<Point>();
             int count = _rng.Next(cfg.MinEnemiesPerFloor, cfg.MaxEnemiesPerFloor + 1);
@@ -136,7 +173,7 @@ namespace PMDRoguelike.Dungeon
                     : map.Rooms[0];
 
                 Point p = RandomPointInRoom(room);
-                if (p == playerSpawn || spawns.Contains(p)) continue;
+                if (p == playerSpawn || p == stairs || spawns.Contains(p)) continue;
                 spawns.Add(p);
             }
 

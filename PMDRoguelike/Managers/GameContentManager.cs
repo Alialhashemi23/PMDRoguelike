@@ -49,10 +49,19 @@ namespace PMDRoguelike.Managers
         /// <summary>Register a runtime texture (e.g. a placeholder) under a logical key.</summary>
         public void RegisterTexture(string key, Texture2D texture) => _textures[key] = texture;
 
-        /// <summary>Register a 1×1 solid-color texture under a logical key.</summary>
-        public void RegisterSolid(string key, Color color)
+        /// <summary>
+        /// Register a 1×1 solid-color texture under a logical key. With
+        /// <paramref name="overwrite"/> the previous texture is replaced (used for
+        /// per-dungeon palettes); otherwise an existing key is left untouched.
+        /// </summary>
+        public void RegisterSolid(string key, Color color, bool overwrite = false)
         {
-            if (_textures.ContainsKey(key)) return;
+            if (_textures.TryGetValue(key, out Texture2D existing))
+            {
+                if (!overwrite) return;
+                existing?.Dispose();
+            }
+
             var texture = new Texture2D(_graphicsDevice, 1, 1);
             texture.SetData(new[] { color });
             _textures[key] = texture;

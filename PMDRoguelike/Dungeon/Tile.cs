@@ -13,9 +13,14 @@ namespace PMDRoguelike.Dungeon
         public Tile(TileType type)
         {
             Type = type;
-            SpriteKey = type == TileType.Wall ? "tile.wall" : "tile.floor";
+            SpriteKey = type switch
+            {
+                TileType.Wall => "tile.wall",
+                TileType.Stairs => "tile.stairs",
+                _ => "tile.floor"
+            };
         }
 
-        public readonly bool IsWalkable => Type == TileType.Floor;
+        public readonly bool IsWalkable => Type != TileType.Wall;
     }
 }

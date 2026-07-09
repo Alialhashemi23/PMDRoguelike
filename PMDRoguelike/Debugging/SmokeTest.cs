@@ -3,6 +3,7 @@ using PMDRoguelike.Constants;
 using PMDRoguelike.Core;
 using PMDRoguelike.Dungeon;
 using PMDRoguelike.Entities;
+using PMDRoguelike.Run;
 using PMDRoguelike.Turns;
 using System;
 using System.Collections.Generic;
@@ -38,9 +39,118 @@ namespace PMDRoguelike.Debugging
 
             bool ok = CheckConnectivity(map, floor.PlayerSpawn);
             ok &= SimulateTurns(map, player, rng, turns: 40);
+            ok &= SimulateFullRun(seed);
 
             Console.WriteLine(ok ? "SMOKE TEST PASSED" : "SMOKE TEST FAILED");
             return ok ? 0 : 1;
+        }
+
+        /// <summary>
+        /// Walk an entire run headlessly: every floor of every defined dungeon,
+        /// pathing the player to the stairs through the real TurnController and
+        /// advancing through the RunManager until victory. Enemies are omitted so
+        /// pathing is deterministic (they can't be fought until the combat phase).
+        /// </summary>
+        private static bool SimulateFullRun(int seed)
+        {
+            var rng = new Rng(seed + 1);
+            var dungeons = DungeonRegistry.Load();
+            var run = new RunManager(dungeons);
+
+            int expectedFloors = 0;
+            foreach (var d in dungeons) expectedFloors += d.Floors;
+
+            int floorsCleared = 0;
+            while (true)
+            {
+                GeneratedFloor floor = new DungeonGenerator(rng).Generate(run.CurrentDungeon);
+                DungeonMap map = floor.Map;
+                string where = $"{run.CurrentDungeon.Name} F{run.FloorNumber}";
+
+                if (!map.IsWalkable(map.StairsPosition) || map.GetTile(map.StairsPosition).Type != TileType.Stairs)
+                {
+                    Console.WriteLine($"Full run: FAIL — no stairs on {where}");
+                    return false;
+                }
+
+                var player = new Player(floor.PlayerSpawn);
+                map.Actors.Add(player);
+                var controller = new TurnController(map, player, rng);
+
+                List<Direction> path = FindPath(map, floor.PlayerSpawn, map.StairsPosition);
+                if (path == null)
+                {
+                    Console.WriteLine($"Full run: FAIL — stairs unreachable on {where}");
+                    return false;
+                }
+
+                foreach (Direction step in path)
+                {
+                    if (!controller.ExecuteTurn(new MoveAction(step)))
+                    {
+                        Console.WriteLine($"Full run: FAIL — pathing move rejected on {where}");
+                        return false;
+                    }
+                }
+
+                if (player.GridPosition != map.StairsPosition)
+                {
+                    Console.WriteLine($"Full run: FAIL — path did not end on stairs on {where}");
+                    return false;
+                }
+
+                run.AddTurns(controller.TurnCount);
+                floorsCleared++;
+
+                if (run.Advance() == AdvanceResult.Victory) break;
+            }
+
+            bool ok = floorsCleared == expectedFloors;
+            Console.WriteLine($"Full run: {floorsCleared}/{expectedFloors} floors cleared across {dungeons.Count} dungeons in {run.TotalTurns} turns — {(ok ? "OK" : "FAIL")}");
+            return ok;
+        }
+
+        /// <summary>BFS over legal moves (8-directional, honoring corner-cut rules) from start to goal.</summary>
+        private static List<Direction> FindPath(DungeonMap map, Point start, Point goal)
+        {
+            Direction[] allDirections =
+            {
+                Direction.North, Direction.NorthEast, Direction.East, Direction.SouthEast,
+                Direction.South, Direction.SouthWest, Direction.West, Direction.NorthWest
+            };
+
+            var cameFrom = new Dictionary<Point, (Point parent, Direction step)>();
+            var queue = new Queue<Point>();
+            queue.Enqueue(start);
+            cameFrom[start] = (start, Direction.None);
+
+            while (queue.Count > 0)
+            {
+                Point current = queue.Dequeue();
+                if (current == goal) break;
+
+                foreach (Direction dir in allDirections)
+                {
+                    if (!map.CanMove(current, dir)) continue;
+                    Point next = current + dir.ToOffset();
+                    if (cameFrom.ContainsKey(next)) continue;
+                    cameFrom[next] = (current, dir);
+                    queue.Enqueue(next);
+                }
+            }
+
+            if (!cameFrom.ContainsKey(goal)) return null;
+
+            var path = new List<Direction>();
+            Point node = goal;
+            while (node != start)
+            {
+                (Point parent, Direction step) = cameFrom[node];
+                path.Add(step);
+                node = parent;
+            }
+            path.Reverse();
+            return path;
         }
 
         private static void PrintMap(DungeonMap map)
@@ -56,7 +166,12 @@ namespace PMDRoguelike.Debugging
                     {
                         Player => '@',
                         Enemy => 'e',
-                        _ => map.GetTile(p).IsWalkable ? '.' : '#'
+                        _ => map.GetTile(p).Type switch
+                        {
+                            TileType.Stairs => '>',
+                            TileType.Floor => '.',
+                            _ => '#'
+                        }
                     });
                 }
                 sb.AppendLine();

@@ -19,6 +19,9 @@ namespace PMDRoguelike.Dungeon
         /// <summary>Rooms carved by the generator (useful for spawning and later features).</summary>
         public List<Rectangle> Rooms { get; } = new List<Rectangle>();
 
+        /// <summary>Where the stairs to the next floor are (set by the generator).</summary>
+        public Point StairsPosition { get; set; }
+
         /// <summary>All actors on this floor. Index 0 is conventionally the player.</summary>
         public List<Actor> Actors { get; } = new List<Actor>();
 
