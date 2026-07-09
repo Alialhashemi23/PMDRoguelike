@@ -576,16 +576,28 @@ namespace PMDRoguelike.Debugging
         // ------------------------------------------------------------------
 
         /// <summary>
-        /// Walk an entire run headlessly: every floor of every defined dungeon,
-        /// pathing the player to the stairs through the real TurnController and
-        /// advancing through the RunManager until victory. Enemies are omitted so
-        /// pathing is deterministic.
+        /// Fight an entire run headlessly with a simple bot: every floor of every
+        /// dungeon through the real TurnController — attacking whatever its moves
+        /// can reach, pathing to the stairs, and defeating all three bosses (whose
+        /// hidden stairs must reveal). The bot is overleveled: this validates the
+        /// systems, not the balance.
         /// </summary>
         private static bool SimulateFullRun(int seed)
         {
+            const int botLevel = 35;
+            const int maxTurnsPerFloor = 3000;
+
             var rng = new Rng(seed + 1);
             var dungeons = DungeonRegistry.Load();
             var run = new RunManager(dungeons);
+            var player = new Player(Point.Zero, GameData.GetSpecies("charmander"), botLevel);
+            var log = new MessageLog();
+
+            // The bot plays with a build, like a real run would — this also exercises
+            // the item hook pipeline (stats, per-turn heal, lethal intercept) end to end.
+            for (int i = 0; i < 10; i++) player.Inventory.AddItem(Items.ItemRegistry.Get("oran-berry"), log);
+            for (int i = 0; i < 2; i++) player.Inventory.AddItem(Items.ItemRegistry.Get("leftovers"), log);
+            player.Inventory.AddItem(Items.ItemRegistry.Get("focus-sash"), log);
 
             int expectedFloors = 0;
             foreach (var d in dungeons) expectedFloors += d.Floors;
@@ -593,55 +605,147 @@ namespace PMDRoguelike.Debugging
             int floorsCleared = 0;
             while (true)
             {
-                GeneratedFloor floor = new DungeonGenerator(rng).Generate(run.CurrentDungeon);
+                DungeonDefinition dungeon = run.CurrentDungeon;
+                string where = $"{dungeon.Name} F{run.FloorNumber}";
+                bool bossFloor = run.IsFinalFloorOfDungeon && dungeon.Boss != null;
+
+                var generator = new DungeonGenerator(rng);
+                GeneratedFloor floor = bossFloor ? generator.GenerateBossArena(dungeon) : generator.Generate(dungeon);
                 DungeonMap map = floor.Map;
-                string where = $"{run.CurrentDungeon.Name} F{run.FloorNumber}";
 
-                if (!map.IsWalkable(map.StairsPosition) || map.GetTile(map.StairsPosition).Type != TileType.Stairs)
-                {
-                    Console.WriteLine($"Full run: FAIL — no stairs on {where}");
-                    return false;
-                }
-
-                var player = new Player(floor.PlayerSpawn, GameData.GetSpecies("charmander"), 5);
+                player.SnapTo(floor.PlayerSpawn);
+                player.RestoreAllPP();
+                player.CureStatus();
                 map.Actors.Add(player);
-                var controller = new TurnController(map, player, rng, new MessageLog());
 
-                List<Direction> path = FindPath(map, floor.PlayerSpawn, map.StairsPosition);
-                if (path == null)
+                Boss boss = null;
+                if (bossFloor)
                 {
-                    Console.WriteLine($"Full run: FAIL — stairs unreachable on {where}");
-                    return false;
-                }
-
-                foreach (Direction step in path)
-                {
-                    if (!controller.ExecuteTurn(new MoveAction(step)))
+                    boss = new Boss(floor.EnemySpawns[0], GameData.GetSpecies(dungeon.Boss.Species),
+                        dungeon.Boss.Level, dungeon.Boss.Title, dungeon.EnemySpecies, dungeon.EnemyLevels.Max);
+                    map.Actors.Add(boss);
+                    if (map.StairsRevealed)
                     {
-                        Console.WriteLine($"Full run: FAIL — pathing move rejected on {where}");
+                        Console.WriteLine($"Full run: FAIL — boss floor stairs should start hidden on {where}");
                         return false;
                     }
                 }
-
-                if (player.GridPosition != map.StairsPosition)
+                else
                 {
-                    Console.WriteLine($"Full run: FAIL — path did not end on stairs on {where}");
+                    foreach (Point spawn in floor.EnemySpawns)
+                    {
+                        string speciesId = dungeon.EnemySpecies.Count > 0 ? rng.Pick(dungeon.EnemySpecies) : "rattata";
+                        map.Actors.Add(new Enemy(spawn, GameData.GetSpecies(speciesId),
+                            rng.Next(dungeon.EnemyLevels.Min, dungeon.EnemyLevels.Max + 1)));
+                    }
+                }
+
+                var controller = new TurnController(map, player, rng, log);
+                player.Inventory.OnFloorStart(controller.ItemContext);
+
+                int turns = 0;
+                while (turns++ < maxTurnsPerFloor)
+                {
+                    // Mirror DungeonState: boss down → stairs appear.
+                    if (boss != null && !map.StairsRevealed && !map.Actors.Contains(boss))
+                    {
+                        map.RevealStairs();
+                    }
+
+                    if (map.GetTile(player.GridPosition).Type == TileType.Stairs) break;
+
+                    TurnAction action = DecideBotAction(map, player, boss);
+                    if (!controller.ExecuteTurn(action)) controller.ExecuteTurn(new WaitAction());
+
+                    if (controller.PlayerDefeated)
+                    {
+                        Console.WriteLine($"Full run: FAIL — bot was defeated on {where} (turn {turns})");
+                        return false;
+                    }
+
+                    string violation = FindInvariantViolation(map);
+                    if (violation != null)
+                    {
+                        Console.WriteLine($"Full run: FAIL on {where} — {violation}");
+                        return false;
+                    }
+
+                    // Move-learn prompts would block a real player; the bot always skips.
+                    player.PendingMoveLearns.Clear();
+                }
+
+                if (turns >= maxTurnsPerFloor)
+                {
+                    Console.WriteLine($"Full run: FAIL — bot stuck on {where}");
+                    return false;
+                }
+
+                if (bossFloor && map.Actors.Contains(boss))
+                {
+                    Console.WriteLine($"Full run: FAIL — reached stairs with the boss alive on {where}");
                     return false;
                 }
 
                 run.AddTurns(controller.TurnCount);
                 floorsCleared++;
 
-                if (run.Advance() == AdvanceResult.Victory) break;
+                AdvanceResult result = run.Advance();
+                if (result == AdvanceResult.Victory) break;
+                if (result == AdvanceResult.NextDungeon)
+                {
+                    player.Heal(player.Stats.HP);
+                    player.CureStatus();
+                }
             }
 
             bool ok = floorsCleared == expectedFloors;
-            Console.WriteLine($"Full run: {floorsCleared}/{expectedFloors} floors cleared across {dungeons.Count} dungeons in {run.TotalTurns} turns — {(ok ? "OK" : "FAIL")}");
+            ok &= player.RunStats.BossesDefeated == dungeons.Count;
+            if (player.RunStats.BossesDefeated != dungeons.Count)
+                Console.WriteLine($"Full run: FAIL — expected {dungeons.Count} boss kills, got {player.RunStats.BossesDefeated}");
+
+            Console.WriteLine($"Full run: {floorsCleared}/{expectedFloors} floors fought through in {run.TotalTurns} turns " +
+                $"({player.RunStats.Kills} kills, {player.RunStats.BossesDefeated} bosses, " +
+                $"{player.RunStats.DamageDealt} dmg dealt / {player.RunStats.DamageTaken} taken) — {(ok ? "OK" : "FAIL")}");
             return ok;
         }
 
-        /// <summary>BFS over legal moves (8-directional, honoring corner-cut rules) from start to goal.</summary>
-        private static List<Direction> FindPath(DungeonMap map, Point start, Point goal)
+        /// <summary>Bot policy: attack anything a move can reach, otherwise path to the objective.</summary>
+        private static TurnAction DecideBotAction(DungeonMap map, Player player, Boss boss)
+        {
+            // Attack whatever is reachable (prefer the strongest usable move slot order).
+            foreach (Actor actor in map.Actors)
+            {
+                if (actor is not Enemy enemy) continue;
+                for (int i = player.Moves.Count - 1; i >= 0; i--)
+                {
+                    if (!player.Moves[i].HasPP) continue;
+                    if (Targeting.InRange(map, player, enemy, player.Moves[i].Move, out Direction dir))
+                    {
+                        player.Facing = dir;
+                        return new AttackAction(i);
+                    }
+                }
+            }
+
+            bool bossAlive = boss != null && map.Actors.Contains(boss);
+            Point goal = bossAlive ? boss.GridPosition : map.StairsPosition;
+
+            List<Direction> path = FindPath(map, player.GridPosition, goal,
+                p => map.IsOccupied(p) && p != goal);
+            if (path != null && (path.Count > 1 || !bossAlive))
+            {
+                return new MoveAction(path[0]);
+            }
+
+            return new WaitAction();
+        }
+
+        /// <summary>
+        /// BFS over legal moves (8-directional, honoring corner-cut rules) from start
+        /// to goal. <paramref name="isBlocked"/> optionally excludes tiles (occupancy).
+        /// </summary>
+        private static List<Direction> FindPath(DungeonMap map, Point start, Point goal,
+            Func<Point, bool> isBlocked = null)
         {
             Direction[] allDirections =
             {
@@ -664,6 +768,7 @@ namespace PMDRoguelike.Debugging
                     if (!map.CanMove(current, dir)) continue;
                     Point next = current + dir.ToOffset();
                     if (cameFrom.ContainsKey(next)) continue;
+                    if (isBlocked != null && isBlocked(next)) continue;
                     cameFrom[next] = (current, dir);
                     queue.Enqueue(next);
                 }

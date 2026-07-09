@@ -1,21 +1,21 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using PMDRoguelike.Entities;
 using PMDRoguelike.Managers;
 using PMDRoguelike.Rendering;
 
 namespace PMDRoguelike.States
 {
-    /// <summary>
-    /// Placeholder victory screen reached after clearing the final dungeon.
-    /// Phase 8 replaces it with a proper run-stats screen.
-    /// </summary>
+    /// <summary>Victory screen after clearing the final dungeon, with run tallies.</summary>
     public class VictoryState : GameState
     {
         private readonly int _totalTurns;
+        private readonly Player _player;
 
-        public VictoryState(PMDRogueGame game, int totalTurns) : base(game)
+        public VictoryState(PMDRogueGame game, int totalTurns, Player player = null) : base(game)
         {
             _totalTurns = totalTurns;
+            _player = player;
         }
 
         public override void Update(GameTime gameTime)
@@ -30,9 +30,10 @@ namespace PMDRoguelike.States
 
             var spriteBatch = Game.SpriteBatch;
             spriteBatch.Begin();
-            TextRenderer.DrawCentered(spriteBatch, Game, "VICTORY!", -60, new Color(120, 220, 120), 1.6f);
-            TextRenderer.DrawCentered(spriteBatch, Game, $"All dungeons cleared in {_totalTurns} turns.", 0, Color.LightGray, 1f);
-            TextRenderer.DrawCentered(spriteBatch, Game, "Press Enter to begin a new run", 60, Color.Gray, 1f);
+            TextRenderer.DrawCentered(spriteBatch, Game, "VICTORY!", -140, new Color(120, 220, 120), 1.6f);
+            TextRenderer.DrawCentered(spriteBatch, Game, "All three dungeons cleared. The realm is at peace.", -80, Color.LightGray, 1f);
+            RunSummary.Draw(spriteBatch, Game, _player, _totalTurns, startYOffset: -30);
+            TextRenderer.DrawCentered(spriteBatch, Game, "Press Enter to begin a new run", 150, Color.Gray, 1f);
             spriteBatch.End();
         }
     }

@@ -85,11 +85,16 @@ namespace PMDRoguelike.Rendering
                 Texture2D texture = _content.GetTexture(actor.SpriteKey);
                 Vector2 drawPos = actor.RenderPosition + actor.VisualOffset;
 
-                // The player gets a white outline so they stand out among species colors.
+                // The player gets a white outline; bosses get a gold one.
                 if (actor is Player)
                 {
                     spriteBatch.Draw(pixel, new Rectangle((int)drawPos.X, (int)drawPos.Y, tileSize, tileSize),
                         Color.White * 0.9f);
+                }
+                else if (actor is Boss)
+                {
+                    spriteBatch.Draw(pixel, new Rectangle((int)drawPos.X - 2, (int)drawPos.Y - 2, tileSize + 4, tileSize + 4),
+                        new Color(235, 190, 80));
                 }
 
                 // Slight inset so actors read as pieces standing on tiles.

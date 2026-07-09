@@ -146,6 +146,36 @@
         { "level": 7, "move": "confusion" },
         { "level": 14, "move": "shadow-ball" }
       ]
+    },
+    {
+      "id": "ivysaur", "name": "Ivysaur", "types": ["grass", "poison"], "color": "#4E8C50", "expYield": 142,
+      "baseStats": { "hp": 60, "attack": 62, "defense": 63, "spAttack": 80, "spDefense": 80, "speed": 60 },
+      "learnset": [
+        { "level": 1, "move": "tackle" },
+        { "level": 2, "move": "vine-whip" },
+        { "level": 4, "move": "sleep-powder" },
+        { "level": 6, "move": "razor-leaf" }
+      ]
+    },
+    {
+      "id": "onix", "name": "Onix", "types": ["rock", "ground"], "color": "#8E8E9E", "expYield": 77,
+      "baseStats": { "hp": 35, "attack": 45, "defense": 160, "spAttack": 30, "spDefense": 45, "speed": 70 },
+      "learnset": [
+        { "level": 1, "move": "tackle" },
+        { "level": 3, "move": "rock-throw" },
+        { "level": 6, "move": "mud-slap" },
+        { "level": 10, "move": "rock-slide" }
+      ]
+    },
+    {
+      "id": "gengar", "name": "Gengar", "types": ["ghost", "poison"], "color": "#5C4585", "expYield": 225,
+      "baseStats": { "hp": 60, "attack": 65, "defense": 60, "spAttack": 130, "spDefense": 75, "speed": 110 },
+      "learnset": [
+        { "level": 1, "move": "lick" },
+        { "level": 4, "move": "hypnosis" },
+        { "level": 8, "move": "confusion" },
+        { "level": 12, "move": "shadow-ball" }
+      ]
     }
   ]
 }

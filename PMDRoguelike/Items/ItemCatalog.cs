@@ -66,6 +66,12 @@ namespace PMDRoguelike.Items
                 : roll < common + uncommon + legendary ? ItemTier.Legendary
                 : ItemTier.Active;
 
+            return RollTier(tier, rng);
+        }
+
+        /// <summary>Uniform roll within one tier (boss rewards guarantee Legendary).</summary>
+        public static Item RollTier(ItemTier tier, Rng rng)
+        {
             var pool = _items.Values.Where(item => item.Tier == tier).ToList();
             return pool[rng.Next(pool.Count)];
         }

@@ -245,7 +245,7 @@ namespace PMDRoguelike.Turns
 
                 bool IsTileFree(Point p) => !reservedTiles.Contains(p) && !undecidedTiles.Contains(p);
 
-                TurnAction action = enemy.DecideAction(_map, _player, IsTileFree, _rng);
+                TurnAction action = enemy.DecideAction(_map, _player, IsTileFree, _rng, _log);
                 switch (action)
                 {
                     case MoveAction move:

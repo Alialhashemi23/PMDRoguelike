@@ -26,6 +26,9 @@ namespace PMDRoguelike.Entities
         /// <summary>Poké currency carried this run (persists across floors).</summary>
         public int Poke { get; private set; }
 
+        /// <summary>Run-wide tallies for the end screens (dies with the player — permadeath).</summary>
+        public Run.RunStats RunStats { get; } = new Run.RunStats();
+
         /// <summary>RoR-style item collection (passive stacks + active slots).</summary>
         public Items.Inventory Inventory { get; }
 
@@ -46,7 +49,12 @@ namespace PMDRoguelike.Entities
             return Inventory == null ? stats : Inventory.ApplyStatModifiers(stats);
         }
 
-        public void AddPoke(int amount) => Poke += Math.Max(0, amount);
+        public void AddPoke(int amount)
+        {
+            amount = Math.Max(0, amount);
+            Poke += amount;
+            RunStats.PokeEarned += amount;
+        }
 
         public void SpendPoke(int amount) => Poke = Math.Max(0, Poke - Math.Max(0, amount));
 

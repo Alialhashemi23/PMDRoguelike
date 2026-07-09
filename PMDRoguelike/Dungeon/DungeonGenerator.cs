@@ -53,6 +53,38 @@ namespace PMDRoguelike.Dungeon
         }
 
         /// <summary>
+        /// Handcrafted boss floor: a small entry room, a corridor, and a large arena.
+        /// The boss spawn is the only enemy spawn; the stairs exist but stay hidden
+        /// until the boss is defeated.
+        /// </summary>
+        public GeneratedFloor GenerateBossArena(DungeonDefinition definition)
+        {
+            var map = new DungeonMap(31, 28);
+
+            var arena = new Rectangle(6, 4, 19, 13);   // tiles y 4..16
+            var entry = new Rectangle(13, 22, 5, 5);   // tiles y 22..26
+            CarveRoom(map, arena);
+            CarveRoom(map, entry);
+            for (int y = arena.Bottom; y < entry.Top; y++)
+                map.SetTile(new Point(15, y), TileType.Floor);
+
+            map.Rooms.Add(arena);
+            map.Rooms.Add(entry);
+
+            // Stairs at the arena's head, hidden until the boss falls.
+            map.StairsPosition = new Point(15, 5);
+            map.StairsRevealed = false;
+
+            var bossSpawn = new Point(15, 10);
+            return new GeneratedFloor
+            {
+                Map = map,
+                PlayerSpawn = new Point(15, 24),
+                EnemySpawns = new List<Point> { bossSpawn }
+            };
+        }
+
+        /// <summary>
         /// Put the stairs in the room farthest from the player's starting room
         /// so every floor asks for some traversal.
         /// </summary>

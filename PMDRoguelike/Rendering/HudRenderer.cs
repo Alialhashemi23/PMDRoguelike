@@ -69,6 +69,25 @@ namespace PMDRoguelike.Rendering
             }
         }
 
+        /// <summary>Big red boss bar, top-center, while the boss lives.</summary>
+        public void DrawBossBar(SpriteBatch spriteBatch, Boss boss, int viewportWidth)
+        {
+            if (_font == null) return;
+
+            const int barWidth = 420, barHeight = 14;
+            int barX = (viewportWidth - barWidth) / 2;
+            const int barY = 46;
+
+            Vector2 nameSize = _font.MeasureString(boss.DisplayName) * 0.8f;
+            TextRenderer.DrawShadowed(spriteBatch, _font, boss.DisplayName,
+                new Vector2((viewportWidth - nameSize.X) / 2f, barY - 28), new Color(240, 120, 120), 0.8f);
+
+            float pct = boss.Stats.HP > 0 ? (float)boss.CurrentHP / boss.Stats.HP : 0f;
+            spriteBatch.Draw(_pixel, new Rectangle(barX - 1, barY - 1, barWidth + 2, barHeight + 2), Color.Black * 0.7f);
+            spriteBatch.Draw(_pixel, new Rectangle(barX, barY, barWidth, barHeight), new Color(60, 40, 40));
+            spriteBatch.Draw(_pixel, new Rectangle(barX, barY, (int)(barWidth * pct), barHeight), new Color(210, 70, 70));
+        }
+
         private void DrawPlayerVitals(SpriteBatch spriteBatch, Player player)
         {
             TextRenderer.DrawShadowed(spriteBatch, _font,

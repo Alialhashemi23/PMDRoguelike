@@ -23,9 +23,20 @@ namespace PMDRoguelike.Dungeon
         public string WallColor { get; set; }
         public string FloorColor { get; set; }
 
-        // Stubs consumed by the combat phase: which species spawn here and at what levels.
+        // Which species spawn here and at what levels.
         public LevelRange EnemyLevels { get; set; } = new LevelRange { Min = 1, Max = 3 };
         public List<string> EnemySpecies { get; set; } = new List<string>();
+
+        /// <summary>The boss guarding this dungeon's final floor.</summary>
+        public BossDefinition Boss { get; set; }
+    }
+
+    public class BossDefinition
+    {
+        public string Species { get; set; }
+        public int Level { get; set; }
+        /// <summary>Display title, e.g. "Overgrown Guardian Ivysaur".</summary>
+        public string Title { get; set; }
     }
 
     public class LevelRange

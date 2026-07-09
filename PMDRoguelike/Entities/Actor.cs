@@ -22,7 +22,7 @@ namespace PMDRoguelike.Entities
         public List<MoveSlot> Moves { get; } = new List<MoveSlot>();
 
         public bool IsFainted => CurrentHP <= 0;
-        public string DisplayName => Species.Name;
+        public virtual string DisplayName => Species.Name;
         public bool AllMovesOutOfPP => Moves.All(slot => !slot.HasPP);
 
         /// <summary>Active major status condition, or null. One at a time (mainline-style).</summary>

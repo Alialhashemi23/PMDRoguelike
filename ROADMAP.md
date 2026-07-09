@@ -128,17 +128,17 @@ reach a stubbed victory; a stubbed game-over exists for later.
 
 ---
 
-## Phase 7: Bosses, Difficulty Curve & the Complete Run
+## ✅ Phase 7: Bosses, Difficulty Curve & the Complete Run — DONE
 
 **Goal:** the full MVP loop closes: 3 dungeons, 3 bosses, victory or permadeath.
 
-- [ ] Boss floors: final floor of each dungeon is a handcrafted-ish arena room (generator special-case)
-- [ ] 3 bosses authored: higher stats, unique movesets, simple behavior patterns (e.g. power-up turn, summon 2 minions once)
-- [ ] Boss rewards: guaranteed Legendary-tier drop + Poké shower; defeating the boss reveals the stairs to the next dungeon
-- [ ] Difficulty curve pass: tune enemy levels/stats/spawn counts across all 15-ish floors so dungeon 1 is gentle and dungeon 3 threatens
-- [ ] Run stats tracking: turns taken, kills, items collected, damage dealt — for the end screens
-- [ ] Permadeath finalized: death anywhere → run summary; no state carries over
-- [ ] Smoke test: full-run simulation (bot descends all floors with combat resolved headlessly) completes without invariant violations
+- [x] Boss floors: final floor of each dungeon is a handcrafted-ish arena room (generator special-case)
+- [x] 3 bosses authored: higher stats, unique movesets, simple behavior patterns (e.g. power-up turn, summon 2 minions once)
+- [x] Boss rewards: guaranteed Legendary-tier drop + Poké shower; defeating the boss reveals the stairs to the next dungeon
+- [x] Difficulty curve pass: tune enemy levels/stats/spawn counts across all 15-ish floors so dungeon 1 is gentle and dungeon 3 threatens
+- [x] Run stats tracking: turns taken, kills, items collected, damage dealt — for the end screens
+- [x] Permadeath finalized: death anywhere → run summary; no state carries over
+- [x] Smoke test: full-run simulation (bot descends all floors with combat resolved headlessly) completes without invariant violations
 
 **Playable check:** a full 3-dungeon run, win or die, is genuinely fun at least once.
 

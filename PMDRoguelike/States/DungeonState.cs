@@ -33,6 +33,7 @@ namespace PMDRoguelike.States
         private HudRenderer _hud;
         private MessageLog _log;
         private MoveLearnPrompt _learnPrompt;
+        private Boss _boss;
 
         public DungeonState(PMDRogueGame game) : base(game) { }
 
@@ -52,8 +53,11 @@ namespace PMDRoguelike.States
             DungeonDefinition dungeon = _run.CurrentDungeon;
             ApplyPalette(dungeon);
 
-            GeneratedFloor floor = new DungeonGenerator(Game.Rng).Generate(dungeon);
+            bool bossFloor = _run.IsFinalFloorOfDungeon && dungeon.Boss != null;
+            var generator = new DungeonGenerator(Game.Rng);
+            GeneratedFloor floor = bossFloor ? generator.GenerateBossArena(dungeon) : generator.Generate(dungeon);
             _map = floor.Map;
+            _boss = null;
 
             // The player persists across floors (level, HP, PP); only the floor is new.
             if (_player == null)
@@ -68,19 +72,34 @@ namespace PMDRoguelike.States
             }
             _map.Actors.Add(_player);
 
-            foreach (Point spawn in floor.EnemySpawns)
+            if (bossFloor)
             {
-                string speciesId = dungeon.EnemySpecies.Count > 0
-                    ? Game.Rng.Pick(dungeon.EnemySpecies)
-                    : "rattata";
-                SpeciesDefinition species = GameData.GetSpecies(speciesId);
-                RegisterSpeciesColor(species);
+                SpeciesDefinition bossSpecies = GameData.GetSpecies(dungeon.Boss.Species);
+                RegisterSpeciesColor(bossSpecies);
+                // Minions can be summoned mid-fight — make sure their colors exist.
+                foreach (string id in dungeon.EnemySpecies) RegisterSpeciesColor(GameData.GetSpecies(id));
 
-                _map.Actors.Add(new Enemy(spawn, species, ScaledEnemyLevel(dungeon)));
+                _boss = new Boss(floor.EnemySpawns[0], bossSpecies, dungeon.Boss.Level, dungeon.Boss.Title,
+                    dungeon.EnemySpecies, dungeon.EnemyLevels.Max);
+                _map.Actors.Add(_boss);
+                _log.Add($"{_boss.DisplayName} blocks the way out!");
             }
+            else
+            {
+                foreach (Point spawn in floor.EnemySpawns)
+                {
+                    string speciesId = dungeon.EnemySpecies.Count > 0
+                        ? Game.Rng.Pick(dungeon.EnemySpecies)
+                        : "rattata";
+                    SpeciesDefinition species = GameData.GetSpecies(speciesId);
+                    RegisterSpeciesColor(species);
 
-            SpawnFloorItems(floor);
-            EconomyPopulator.Populate(_map, floor.PlayerSpawn, Game.Rng, _run.Depth);
+                    _map.Actors.Add(new Enemy(spawn, species, ScaledEnemyLevel(dungeon)));
+                }
+
+                SpawnFloorItems(floor);
+                EconomyPopulator.Populate(_map, floor.PlayerSpawn, Game.Rng, _run.Depth);
+            }
 
             _turns = new TurnController(_map, _player, Game.Rng, _log);
             _camera = new Camera();
@@ -146,10 +165,18 @@ namespace PMDRoguelike.States
 
             _turns.Update(gameTime);
 
+            // Boss down → the way forward materializes.
+            if (_boss != null && !_map.StairsRevealed && !_map.Actors.Contains(_boss))
+            {
+                _map.RevealStairs();
+                _log.Add("The stairs are revealed!");
+            }
+
             if (_turns.PlayerDefeated)
             {
                 Game.States.ChangeState(new GameOverState(Game,
-                    $"Defeated in {_run.CurrentDungeon.Name} F{_run.FloorNumber} at Lv.{_player.Level}."));
+                    $"Defeated in {_run.CurrentDungeon.Name} F{_run.FloorNumber} at Lv.{_player.Level}.",
+                    _player, _run.TotalTurns + _turns.TurnCount));
                 return;
             }
 
@@ -191,7 +218,7 @@ namespace PMDRoguelike.States
                 return;
             }
 
-            if (pos == _map.StairsPosition) Descend();
+            if (_map.GetTile(pos).Type == TileType.Stairs) Descend();
         }
 
         /// <summary>Contextual prompt for the tile the player is standing on.</summary>
@@ -206,7 +233,7 @@ namespace PMDRoguelike.States
             Items.Chest chest = _map.ChestAt(pos);
             if (chest != null) return $"Open chest — {chest.Price} Poké (Enter)";
 
-            if (pos == _map.StairsPosition) return "Press Enter to descend";
+            if (_map.GetTile(pos).Type == TileType.Stairs) return "Press Enter to descend";
             return null;
         }
 
@@ -217,17 +244,30 @@ namespace PMDRoguelike.States
             AdvanceResult result = _run.Advance();
             if (result == AdvanceResult.Victory)
             {
-                Game.States.ChangeState(new VictoryState(Game, _run.TotalTurns));
+                Game.States.ChangeState(new VictoryState(Game, _run.TotalTurns, _player));
                 return;
             }
 
-            // A short rest at the stairs: PP refills, HP carries over.
+            // A short rest at the stairs: PP refills, HP carries over...
             _player.RestoreAllPP();
+
+            // ...except a cleared dungeon grants a full recovery.
+            if (result == AdvanceResult.NextDungeon)
+            {
+                _player.Heal(_player.Stats.HP);
+                _player.CureStatus();
+            }
+
             BuildFloor();
 
-            _log.Add(result == AdvanceResult.NextDungeon
-                ? $"Entered {_run.CurrentDungeon.Name}!"
-                : $"{_run.CurrentDungeon.Name} — floor {_run.FloorNumber}.");
+            if (result == AdvanceResult.NextDungeon)
+            {
+                _log.Add($"Entered {_run.CurrentDungeon.Name}! You feel fully rested.");
+            }
+            else
+            {
+                _log.Add($"{_run.CurrentDungeon.Name} — floor {_run.FloorNumber}.");
+            }
         }
 
         public override void Draw(GameTime gameTime)
@@ -244,6 +284,8 @@ namespace PMDRoguelike.States
 
             spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             _hud.Draw(spriteBatch, _run, _player, _turns.TurnCount, CurrentPrompt(), viewport.Width, viewport.Height);
+            Boss livingBoss = _boss != null && _map.Actors.Contains(_boss) ? _boss : null;
+            if (livingBoss != null) _hud.DrawBossBar(spriteBatch, livingBoss, viewport.Width);
             _log.Draw(spriteBatch, font, pixel, viewport.Width, viewport.Height);
 
             if (KeyboardManager.Instance.IsKeyDown(Keys.LeftShift) || KeyboardManager.Instance.IsKeyDown(Keys.RightShift))

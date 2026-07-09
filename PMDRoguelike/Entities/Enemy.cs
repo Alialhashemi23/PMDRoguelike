@@ -17,7 +17,7 @@ namespace PMDRoguelike.Entities
     public class Enemy : Actor
     {
         /// <summary>Whether this enemy has noticed the player (sticky once set).</summary>
-        public bool Alerted { get; private set; }
+        public bool Alerted { get; protected set; }
 
         public Enemy(Point gridPosition, SpeciesDefinition species, int level)
             : base(gridPosition, species, level) { }
@@ -25,9 +25,11 @@ namespace PMDRoguelike.Entities
         /// <summary>
         /// Decide this enemy's action for the turn. <paramref name="isTileFree"/>
         /// answers whether a target tile will be unoccupied at the end of the turn
-        /// (the TurnController tracks reservations).
+        /// (the TurnController tracks reservations). <paramref name="log"/> lets
+        /// special enemies (bosses) narrate their patterns.
         /// </summary>
-        public TurnAction DecideAction(DungeonMap map, Player player, Func<Point, bool> isTileFree, Rng rng)
+        public virtual TurnAction DecideAction(DungeonMap map, Player player, Func<Point, bool> isTileFree, Rng rng,
+            UI.MessageLog log)
         {
             UpdateAwareness(map, player);
 

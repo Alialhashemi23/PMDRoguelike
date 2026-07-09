@@ -92,6 +92,9 @@ namespace PMDRoguelike.Combat
             if (attacker == _player) damage = _player.Inventory.ModifyOutgoingDamage(damage, move);
             if (target == _player) damage = _player.Inventory.ModifyLethalDamage(damage, _player.CurrentHP, Context);
 
+            if (attacker == _player) _player.RunStats.DamageDealt += damage;
+            if (target == _player) _player.RunStats.DamageTaken += damage;
+
             target.TakeDamage(damage);
             target.FlashHit();
 
@@ -136,6 +139,8 @@ namespace PMDRoguelike.Combat
             if (target.IsFainted) return;
 
             if (target == _player) damage = _player.Inventory.ModifyLethalDamage(damage, _player.CurrentHP, Context);
+            if (source == _player) _player.RunStats.DamageDealt += damage;
+            if (target == _player) _player.RunStats.DamageTaken += damage;
             target.TakeDamage(damage);
             target.FlashHit();
             if (target.IsFainted) HandleFaint(source, target);
@@ -175,6 +180,7 @@ namespace PMDRoguelike.Combat
                 int damage = StatusRules.TickDamage(actor);
                 if (damage > 0)
                 {
+                    if (actor == _player) _player.RunStats.DamageTaken += damage;
                     actor.TakeDamage(damage);
                     actor.FlashHit();
                     if (actor == _player || IsNearPlayer(actor, _player))
@@ -217,11 +223,26 @@ namespace PMDRoguelike.Combat
 
             if (attacker is Player player && victim is Enemy enemy)
             {
+                player.RunStats.Kills++;
+
                 int exp = Math.Max(1, enemy.Species.ExpYield * enemy.Level / 7);
                 int poke = Economy.FaintReward(enemy.Level, _rng);
                 player.AddPoke(poke);
                 _log.Add($"Gained {exp} EXP and {poke} Poké!");
                 player.AddExp(exp, _log);
+
+                if (enemy is Boss boss)
+                {
+                    // Guaranteed legendary + a Poké shower; the stairs reveal is
+                    // handled by DungeonState, which watches for the boss's demise.
+                    player.RunStats.BossesDefeated++;
+                    int bounty = 150 + 30 * boss.Level;
+                    player.AddPoke(bounty);
+                    Item reward = ItemRegistry.RollTier(ItemTier.Legendary, _rng);
+                    _map.GroundItems.Add(new GroundItem(victim.GridPosition, reward));
+                    _log.Add($"{boss.DisplayName} is defeated! It leaves a {reward.Name} and {bounty} Poké!");
+                    return;
+                }
 
                 // Low-rate item drop where the enemy fell.
                 float dropChance = GameConstants.Instance.Data.WorldGeneration.Spawning.ItemSpawnRate;

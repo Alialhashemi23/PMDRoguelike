@@ -48,6 +48,7 @@ namespace PMDRoguelike.Items
                     if (!_stacks.ContainsKey(passive.Id)) _passives.Add(passive);
                     _stacks[passive.Id] = StacksOf(passive.Id) + 1;
                     _owner.RefreshStats();
+                    _owner.RunStats.ItemsCollected++;
                     log.Add($"Picked up {passive.Name} (x{StacksOf(passive.Id)})!");
                     return true;
 
@@ -58,6 +59,7 @@ namespace PMDRoguelike.Items
                         return false;
                     }
                     Actives.Add(active);
+                    _owner.RunStats.ItemsCollected++;
                     log.Add($"Picked up {active.Name}! ({(Actives.Count == 1 ? "Q" : "E")} to use)");
                     return true;
 

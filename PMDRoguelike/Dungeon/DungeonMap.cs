@@ -22,6 +22,16 @@ namespace PMDRoguelike.Dungeon
         /// <summary>Where the stairs to the next floor are (set by the generator).</summary>
         public Point StairsPosition { get; set; }
 
+        /// <summary>False on boss floors until the boss falls; the stairs tile doesn't exist yet.</summary>
+        public bool StairsRevealed { get; set; } = true;
+
+        /// <summary>Materialize the stairs tile (boss defeated).</summary>
+        public void RevealStairs()
+        {
+            SetTile(StairsPosition, TileType.Stairs);
+            StairsRevealed = true;
+        }
+
         /// <summary>All actors on this floor. Index 0 is conventionally the player.</summary>
         public List<Actor> Actors { get; } = new List<Actor>();
 
