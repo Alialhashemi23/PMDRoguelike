@@ -80,16 +80,16 @@ reach a stubbed victory; a stubbed game-over exists for later.
 
 ---
 
-## Phase 4: Combat Depth — Status Conditions & Smarter Dungeon AI
+## ✅ Phase 4: Combat Depth — Status Conditions & Smarter Dungeon AI — DONE
 
 **Goal:** combat gets the required status layer and enemies stop being trivial.
 
-- [ ] Status conditions: Burn, Poison, Paralysis, Sleep (durations from GameConstants; already configured) — tick timing, damage-over-time, action-skip/attack-drop effects, log messages, HUD indicators
-- [ ] Moves can inflict statuses (effect data on move JSON); a few status-focused moves added to the roster
-- [ ] Status cures groundwork (used by berries/items in Phase 5)
-- [ ] AI upgrades: line-of-sight awareness, room-based aggro (notice you when you enter their room), don't path through other enemies' reserved tiles (already handled) but do path around obstacles better
-- [ ] Enemy spawn scaling: level ranges per floor from the dungeon definition; moderate stat scaling across floors/dungeons
-- [ ] Smoke test: status tick assertions (burn damage per turn, sleep skips actions, paralysis proc rate)
+- [x] Status conditions: Burn, Poison, Paralysis, Sleep (durations from GameConstants; already configured) — tick timing, damage-over-time, action-skip/attack-drop effects, log messages, HUD indicators
+- [x] Moves can inflict statuses (effect data on move JSON); a few status-focused moves added to the roster
+- [x] Status cures groundwork (used by berries/items in Phase 5)
+- [x] AI upgrades: line-of-sight awareness, room-based aggro (notice you when you enter their room), don't path through other enemies' reserved tiles (already handled) but do path around obstacles better
+- [x] Enemy spawn scaling: level ranges per floor from the dungeon definition; moderate stat scaling across floors/dungeons
+- [x] Smoke test: status tick assertions (burn damage per turn, sleep skips actions, paralysis proc rate)
 
 **Playable check:** get poisoned, watch it tick in the log; put an enemy to sleep and take free turns.
 

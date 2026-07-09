@@ -65,6 +65,37 @@ namespace PMDRoguelike.Dungeon
             return true;
         }
 
+        /// <summary>The room rectangle containing this point, or null (corridors).</summary>
+        public Rectangle? RoomContaining(Point p)
+        {
+            foreach (Rectangle room in Rooms)
+            {
+                if (room.Contains(p)) return room;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// True when a straight line between the two tiles crosses only walkable
+        /// tiles (Bresenham). Used for enemy sight checks.
+        /// </summary>
+        public bool HasLineOfSight(Point a, Point b)
+        {
+            int dx = System.Math.Abs(b.X - a.X), dy = -System.Math.Abs(b.Y - a.Y);
+            int sx = a.X < b.X ? 1 : -1, sy = a.Y < b.Y ? 1 : -1;
+            int err = dx + dy;
+            Point current = a;
+
+            while (current != b)
+            {
+                int e2 = 2 * err;
+                if (e2 >= dy) { err += dy; current.X += sx; }
+                if (e2 <= dx) { err += dx; current.Y += sy; }
+                if (current != b && !IsWalkable(current)) return false;
+            }
+            return true;
+        }
+
         public Actor GetActorAt(Point p)
         {
             foreach (Actor actor in Actors)

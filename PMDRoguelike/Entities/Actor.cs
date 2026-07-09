@@ -25,6 +25,21 @@ namespace PMDRoguelike.Entities
         public string DisplayName => Species.Name;
         public bool AllMovesOutOfPP => Moves.All(slot => !slot.HasPP);
 
+        /// <summary>Active major status condition, or null. One at a time (mainline-style).</summary>
+        public StatusEffect Status { get; private set; }
+        public StatusType StatusType => Status?.Type ?? StatusType.None;
+
+        /// <summary>Apply a status; fails (returns false) if one is already active.</summary>
+        public bool ApplyStatus(StatusType type, int turns)
+        {
+            if (type == StatusType.None || Status != null) return false;
+            Status = new StatusEffect(type, turns);
+            return true;
+        }
+
+        /// <summary>Remove the active status (used by expiry now; berries/items in Phase 5).</summary>
+        public void CureStatus() => Status = null;
+
         protected Actor(Point gridPosition, SpeciesDefinition species, int level) : base(gridPosition)
         {
             Species = species;

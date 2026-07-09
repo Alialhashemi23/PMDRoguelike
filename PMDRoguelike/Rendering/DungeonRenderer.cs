@@ -72,6 +72,13 @@ namespace PMDRoguelike.Rendering
                 {
                     spriteBatch.Draw(pixel, destination, Color.White * (actor.HitFlash * 0.8f));
                 }
+
+                // Status indicator: small colored square in the tile corner.
+                if (actor.StatusType != Combat.StatusType.None)
+                {
+                    var dot = new Rectangle((int)drawPos.X + tileSize - 9, (int)drawPos.Y + 1, 8, 8);
+                    spriteBatch.Draw(pixel, dot, HudRenderer.StatusColor(actor.StatusType));
+                }
             }
         }
     }

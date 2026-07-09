@@ -3,8 +3,9 @@ namespace PMDRoguelike.Data
     public enum MoveCategory
     {
         Physical,
-        Special
-        // Status arrives in Phase 4
+        Special,
+        /// <summary>No damage; only applies its status effect.</summary>
+        Status
     }
 
     public enum MoveRange
@@ -32,5 +33,10 @@ namespace PMDRoguelike.Data
         public MoveRange Range { get; set; } = MoveRange.Melee;
         /// <summary>Max tiles a Line move travels. Ignored for Melee.</summary>
         public int Distance { get; set; } = 1;
+
+        /// <summary>Status this move can inflict (None = never). Status-category moves always try.</summary>
+        public Combat.StatusType InflictStatus { get; set; } = Combat.StatusType.None;
+        /// <summary>Percent chance to inflict when the move connects.</summary>
+        public int InflictChance { get; set; }
     }
 }

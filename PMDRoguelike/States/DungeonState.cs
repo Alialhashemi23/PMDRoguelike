@@ -76,12 +76,24 @@ namespace PMDRoguelike.States
                 SpeciesDefinition species = GameData.GetSpecies(speciesId);
                 RegisterSpeciesColor(species);
 
-                int level = Game.Rng.Next(dungeon.EnemyLevels.Min, dungeon.EnemyLevels.Max + 1);
-                _map.Actors.Add(new Enemy(spawn, species, level));
+                _map.Actors.Add(new Enemy(spawn, species, ScaledEnemyLevel(dungeon)));
             }
 
             _turns = new TurnController(_map, _player, Game.Rng, _log);
             _camera = new Camera();
+        }
+
+        /// <summary>
+        /// Enemy level climbs through the dungeon's range as the player descends its
+        /// floors (±1 jitter), so early floors stay gentle and the last floor bites.
+        /// </summary>
+        private int ScaledEnemyLevel(DungeonDefinition dungeon)
+        {
+            float progress = dungeon.Floors > 1 ? (_run.FloorNumber - 1f) / (dungeon.Floors - 1f) : 1f;
+            int mid = (int)System.Math.Round(dungeon.EnemyLevels.Min +
+                (dungeon.EnemyLevels.Max - dungeon.EnemyLevels.Min) * progress);
+            int level = mid + Game.Rng.Next(-1, 2);
+            return System.Math.Clamp(level, dungeon.EnemyLevels.Min, dungeon.EnemyLevels.Max);
         }
 
         private void RegisterSpeciesColor(SpeciesDefinition species) =>

@@ -74,8 +74,7 @@ namespace PMDRoguelike.Data
                     Id = (string)token["id"],
                     Name = (string)token["name"],
                     Type = PokemonTypeExtensions.Parse((string)token["type"]),
-                    Category = string.Equals((string)token["category"], "physical", StringComparison.OrdinalIgnoreCase)
-                        ? MoveCategory.Physical : MoveCategory.Special,
+                    Category = ParseCategory((string)token["category"]),
                     Power = (int?)token["power"] ?? 0,
                     Accuracy = (int?)token["accuracy"] ?? 100,
                     PP = (int?)token["pp"] ?? 10,
@@ -83,9 +82,25 @@ namespace PMDRoguelike.Data
                         ? MoveRange.Line : MoveRange.Melee,
                     Distance = (int?)token["distance"] ?? 1
                 };
+
+                JToken effect = token["effect"];
+                if (effect != null)
+                {
+                    move.InflictStatus = Enum.Parse<Combat.StatusType>((string)effect["status"], ignoreCase: true);
+                    // Status-category moves always apply on hit; damaging moves need a chance.
+                    move.InflictChance = (int?)effect["chance"] ?? 100;
+                }
+
                 moves[move.Id] = move;
             }
             return moves;
+        }
+
+        private static MoveCategory ParseCategory(string category)
+        {
+            if (string.Equals(category, "physical", StringComparison.OrdinalIgnoreCase)) return MoveCategory.Physical;
+            if (string.Equals(category, "status", StringComparison.OrdinalIgnoreCase)) return MoveCategory.Status;
+            return MoveCategory.Special;
         }
 
         private static Dictionary<string, SpeciesDefinition> LoadSpecies(string path)

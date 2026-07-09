@@ -82,6 +82,13 @@ namespace PMDRoguelike.Turns
         {
             if (PlayerDefeated) return false;
 
+            // Sleep/paralysis can steal the player's action; the turn still passes.
+            if (playerAction is not WaitAction && StatusRules.ActionSkipped(_player, _rng, out string skipMessage))
+            {
+                _log.Add(skipMessage);
+                playerAction = new WaitAction();
+            }
+
             switch (playerAction)
             {
                 case MoveAction move:
@@ -107,6 +114,9 @@ namespace PMDRoguelike.Turns
             }
 
             if (!PlayerDefeated) ResolveEnemyTurns();
+
+            // End-of-turn status upkeep (burn/poison damage, durations).
+            if (!PlayerDefeated) _combat.TickStatuses(_player);
 
             TurnCount++;
 
@@ -165,6 +175,14 @@ namespace PMDRoguelike.Turns
                 if (PlayerDefeated) break;
 
                 undecidedTiles.Remove(enemy.GridPosition);
+
+                // Sleeping/paralyzed enemies can lose their action entirely.
+                if (StatusRules.ActionSkipped(enemy, _rng, out string enemySkip))
+                {
+                    if (CombatResolver.IsNearPlayer(enemy, _player)) _log.Add(enemySkip);
+                    reservedTiles.Add(enemy.GridPosition);
+                    continue;
+                }
 
                 bool IsTileFree(Point p) => !reservedTiles.Contains(p) && !undecidedTiles.Contains(p);
 

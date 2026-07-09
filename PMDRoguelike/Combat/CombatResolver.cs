@@ -47,6 +47,21 @@ namespace PMDRoguelike.Combat
                 return;
             }
 
+            // Pure status moves: accuracy roll, then apply — no damage math.
+            if (move.Category == MoveCategory.Status)
+            {
+                if (move.Accuracy < 100 && _rng.Next(100) >= move.Accuracy)
+                {
+                    _log.Add($"{attacker.DisplayName}'s attack missed!");
+                    return;
+                }
+                if (!TryInflictStatus(target, move.InflictStatus, 100))
+                {
+                    _log.Add("But it failed!");
+                }
+                return;
+            }
+
             DamageResult result = DamageCalculator.Calculate(attacker, target, move, _rng);
             if (result.Missed)
             {
@@ -71,6 +86,10 @@ namespace PMDRoguelike.Combat
             {
                 HandleFaint(attacker, target);
             }
+            else if (move.InflictStatus != StatusType.None)
+            {
+                TryInflictStatus(target, move.InflictStatus, move.InflictChance);
+            }
 
             if (isStruggle && !attacker.IsFainted)
             {
@@ -80,6 +99,62 @@ namespace PMDRoguelike.Combat
                 if (attacker.IsFainted) HandleFaint(attacker, attacker);
             }
         }
+
+        /// <summary>
+        /// Roll and apply a status. Returns false when the roll fails or the target
+        /// already carries a status (one major condition at a time).
+        /// </summary>
+        public bool TryInflictStatus(Actor target, StatusType type, int chance)
+        {
+            if (type == StatusType.None) return false;
+            if (chance < 100 && _rng.Next(100) >= chance) return false;
+            if (!target.ApplyStatus(type, StatusRules.DurationFor(type))) return false;
+
+            _log.Add(StatusRules.InflictMessage(target, type));
+            return true;
+        }
+
+        /// <summary>
+        /// End-of-turn status upkeep for every actor: damage-over-time, duration
+        /// countdown, and expiry. Status damage can faint (player included).
+        /// </summary>
+        public void TickStatuses(Player player)
+        {
+            foreach (Actor actor in _map.Actors.ToArray())
+            {
+                if (actor.Status == null) continue;
+
+                StatusType type = actor.StatusType;
+                int damage = StatusRules.TickDamage(actor);
+                if (damage > 0)
+                {
+                    actor.TakeDamage(damage);
+                    actor.FlashHit();
+                    if (actor == player || IsNearPlayer(actor, player))
+                        _log.Add($"{actor.DisplayName} is hurt by its {(type == StatusType.Burn ? "burn" : "poison")}!");
+
+                    if (actor.IsFainted)
+                    {
+                        // Status kills credit the player: they're the only opponent.
+                        HandleFaint(player, actor);
+                        continue;
+                    }
+                }
+
+                actor.Status.TurnsRemaining--;
+                if (actor.Status.TurnsRemaining <= 0)
+                {
+                    actor.CureStatus();
+                    if (actor == player || IsNearPlayer(actor, player))
+                        _log.Add(StatusRules.WearOffMessage(actor, type));
+                }
+            }
+        }
+
+        /// <summary>Only narrate things happening close enough for the player to see.</summary>
+        public static bool IsNearPlayer(Actor actor, Player player) =>
+            Math.Max(Math.Abs(actor.GridPosition.X - player.GridPosition.X),
+                     Math.Abs(actor.GridPosition.Y - player.GridPosition.Y)) <= 8;
 
         private void HandleFaint(Actor attacker, Actor victim)
         {

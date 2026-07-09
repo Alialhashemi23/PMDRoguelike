@@ -10,11 +10,15 @@ using System;
 namespace PMDRoguelike.Entities
 {
     /// <summary>
-    /// Wild Pokémon AI: attack the player when a usable move can reach them,
-    /// chase when they're within detection range, wander lazily otherwise.
+    /// Wild Pokémon AI. Enemies are unaware until the player enters their room or
+    /// comes into clear line of sight within detection range; once alerted they
+    /// chase and attack until the floor ends. Unaware enemies wander lazily.
     /// </summary>
     public class Enemy : Actor
     {
+        /// <summary>Whether this enemy has noticed the player (sticky once set).</summary>
+        public bool Alerted { get; private set; }
+
         public Enemy(Point gridPosition, SpeciesDefinition species, int level)
             : base(gridPosition, species, level) { }
 
@@ -25,10 +29,25 @@ namespace PMDRoguelike.Entities
         /// </summary>
         public TurnAction DecideAction(DungeonMap map, Player player, Func<Point, bool> isTileFree, Rng rng)
         {
-            // Attack if any move with PP can reach the player from here.
+            UpdateAwareness(map, player);
+
+            if (!Alerted)
+            {
+                // Unaware: lazy wander.
+                if (rng.Chance(0.5f))
+                {
+                    Direction wander = RandomValidDirection(map, isTileFree, rng);
+                    if (wander != Direction.None) return new MoveAction(wander);
+                }
+                return new WaitAction();
+            }
+
+            // Attack if any usable move can reach the player from here.
             for (int i = 0; i < Moves.Count; i++)
             {
                 if (!Moves[i].HasPP) continue;
+                // Don't waste pure status moves on an already-statused player.
+                if (Moves[i].Move.Category == MoveCategory.Status && player.StatusType != StatusType.None) continue;
                 if (Targeting.InRange(map, this, player, Moves[i].Move, out Direction attackDir))
                 {
                     Facing = attackDir;
@@ -36,33 +55,42 @@ namespace PMDRoguelike.Entities
                 }
             }
 
-            int distance = Chebyshev(GridPosition, player.GridPosition);
-
-            if (distance <= GameConstants.Instance.DetectionRange)
-            {
-                Direction step = BestStepToward(map, player.GridPosition, isTileFree);
-                if (step != Direction.None) return new MoveAction(step);
-                return new WaitAction();
-            }
-
-            // Out of range: lazy wander.
-            if (rng.Chance(0.5f))
-            {
-                Direction wander = RandomValidDirection(map, isTileFree, rng);
-                if (wander != Direction.None) return new MoveAction(wander);
-            }
+            Direction step = BestStepToward(map, player.GridPosition, isTileFree);
+            if (step != Direction.None) return new MoveAction(step);
             return new WaitAction();
         }
 
+        private void UpdateAwareness(DungeonMap map, Player player)
+        {
+            if (Alerted) return;
+
+            // Same room = noticed, regardless of distance.
+            Rectangle? room = map.RoomContaining(GridPosition);
+            if (room.HasValue && room.Value.Contains(player.GridPosition))
+            {
+                Alerted = true;
+                return;
+            }
+
+            // Otherwise: close enough AND actually visible.
+            if (Chebyshev(GridPosition, player.GridPosition) <= GameConstants.Instance.DetectionRange &&
+                map.HasLineOfSight(GridPosition, player.GridPosition))
+            {
+                Alerted = true;
+            }
+        }
+
         /// <summary>
-        /// Greedy chase: pick the legal step that gets closest to the player.
-        /// Returns None when no step improves on standing still.
+        /// Greedy chase: pick the legal step that gets closest to the player. When no
+        /// step strictly improves (pillar/actor in the way), allow an equal-distance
+        /// sidestep so the enemy flows around obstacles instead of freezing.
         /// </summary>
         private Direction BestStepToward(DungeonMap map, Point target, Func<Point, bool> isTileFree)
         {
             Direction best = Direction.None;
             int bestDistance = Chebyshev(GridPosition, target);
             int bestManhattan = Manhattan(GridPosition, target);
+            Direction sidestep = Direction.None;
 
             foreach (Direction dir in AllDirections)
             {
@@ -78,9 +106,13 @@ namespace PMDRoguelike.Entities
                     bestDistance = distance;
                     bestManhattan = manhattan;
                 }
+                else if (sidestep == Direction.None && distance == Chebyshev(GridPosition, target))
+                {
+                    sidestep = dir;
+                }
             }
 
-            return best;
+            return best != Direction.None ? best : sidestep;
         }
 
         private Direction RandomValidDirection(DungeonMap map, Func<Point, bool> isTileFree, Rng rng)

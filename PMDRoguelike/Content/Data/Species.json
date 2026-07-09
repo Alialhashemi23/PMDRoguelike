@@ -7,7 +7,8 @@
         { "level": 1, "move": "tackle" },
         { "level": 3, "move": "absorb" },
         { "level": 6, "move": "vine-whip" },
-        { "level": 10, "move": "razor-leaf" }
+        { "level": 8, "move": "sleep-powder" },
+        { "level": 12, "move": "razor-leaf" }
       ]
     },
     {
@@ -36,8 +37,9 @@
       "learnset": [
         { "level": 1, "move": "quick-attack" },
         { "level": 3, "move": "thunder-shock" },
-        { "level": 9, "move": "spark" },
-        { "level": 15, "move": "thunderbolt" }
+        { "level": 7, "move": "thunder-wave" },
+        { "level": 11, "move": "spark" },
+        { "level": 16, "move": "thunderbolt" }
       ]
     },
     {
@@ -72,8 +74,9 @@
       "baseStats": { "hp": 45, "attack": 50, "defense": 55, "spAttack": 75, "spDefense": 65, "speed": 30 },
       "learnset": [
         { "level": 1, "move": "absorb" },
-        { "level": 5, "move": "tackle" },
-        { "level": 9, "move": "razor-leaf" }
+        { "level": 4, "move": "poison-powder" },
+        { "level": 7, "move": "stun-spore" },
+        { "level": 10, "move": "razor-leaf" }
       ]
     },
     {
@@ -110,8 +113,9 @@
       "baseStats": { "hp": 40, "attack": 45, "defense": 35, "spAttack": 30, "spDefense": 40, "speed": 55 },
       "learnset": [
         { "level": 1, "move": "bite" },
-        { "level": 4, "move": "gust" },
-        { "level": 10, "move": "wing-attack" }
+        { "level": 4, "move": "poison-sting" },
+        { "level": 7, "move": "gust" },
+        { "level": 11, "move": "wing-attack" }
       ]
     },
     {
@@ -120,8 +124,9 @@
       "learnset": [
         { "level": 1, "move": "tackle" },
         { "level": 4, "move": "thunder-shock" },
-        { "level": 10, "move": "spark" },
-        { "level": 16, "move": "thunderbolt" }
+        { "level": 8, "move": "thunder-wave" },
+        { "level": 12, "move": "spark" },
+        { "level": 17, "move": "thunderbolt" }
       ]
     },
     {
@@ -137,8 +142,9 @@
       "baseStats": { "hp": 30, "attack": 35, "defense": 30, "spAttack": 100, "spDefense": 35, "speed": 80 },
       "learnset": [
         { "level": 1, "move": "lick" },
-        { "level": 5, "move": "confusion" },
-        { "level": 13, "move": "shadow-ball" }
+        { "level": 4, "move": "hypnosis" },
+        { "level": 7, "move": "confusion" },
+        { "level": 14, "move": "shadow-ball" }
       ]
     }
   ]

@@ -46,6 +46,7 @@ namespace PMDRoguelike.Debugging
             ok &= SimulateTurns(map, player, rng, turns: 40);
             ok &= SimulateFullRun(seed);
             ok &= CombatGoldenTests();
+            ok &= StatusGoldenTests();
 
             Console.WriteLine(ok ? "SMOKE TEST PASSED" : "SMOKE TEST FAILED");
             return ok ? 0 : 1;
@@ -160,6 +161,78 @@ namespace PMDRoguelike.Debugging
             ok &= Expect(player.CurrentHP <= hpBefore, "Struggle recoil should not heal the attacker");
 
             if (ok) Console.WriteLine("Combat: scripted battle (PP, faint, EXP, level-up, Struggle) — OK");
+            return ok;
+        }
+
+        // ------------------------------------------------------------------
+        // Status condition tests (Phase 4)
+        // ------------------------------------------------------------------
+
+        private static bool StatusGoldenTests()
+        {
+            bool ok = true;
+
+            // Status move data parsed correctly.
+            MoveDefinition sleepPowder = GameData.GetMove("sleep-powder");
+            ok &= Expect(sleepPowder.Category == MoveCategory.Status, "sleep-powder should be a Status move");
+            ok &= Expect(sleepPowder.InflictStatus == StatusType.Sleep, "sleep-powder should inflict Sleep");
+            ok &= Expect(GameData.GetMove("ember").InflictStatus == StatusType.Burn, "ember should carry a burn chance");
+
+            // One status at a time; cure works.
+            var dummy = new Enemy(new Point(1, 1), GameData.GetSpecies("rattata"), 5);
+            ok &= Expect(dummy.ApplyStatus(StatusType.Poison, 5), "applying poison to a clean actor should succeed");
+            ok &= Expect(!dummy.ApplyStatus(StatusType.Burn, 5), "second status should be rejected");
+            dummy.CureStatus();
+            ok &= Expect(dummy.StatusType == StatusType.None, "CureStatus should clear the condition");
+
+            // Poison ticks 1/8 max HP (min 1) and expires after its duration.
+            var arena = new DungeonMap(5, 5);
+            for (int x = 1; x < 4; x++)
+                for (int y = 1; y < 4; y++)
+                    arena.SetTile(new Point(x, y), TileType.Floor);
+            var victim = new Enemy(new Point(1, 1), GameData.GetSpecies("geodude"), 10);
+            var bystanderPlayer = new Player(new Point(3, 3), GameData.GetSpecies("charmander"), 5);
+            arena.Actors.Add(bystanderPlayer);
+            arena.Actors.Add(victim);
+
+            var resolver = new CombatResolver(arena, new MessageLog(), new Rng(7));
+            victim.ApplyStatus(StatusType.Poison, StatusRules.DurationFor(StatusType.Poison));
+            int expectedTick = Math.Max(1, victim.Stats.HP / 8);
+            int hpBefore = victim.CurrentHP;
+            resolver.TickStatuses(bystanderPlayer);
+            ok &= Expect(victim.CurrentHP == hpBefore - expectedTick,
+                $"poison tick expected {expectedTick}, got {hpBefore - victim.CurrentHP}");
+
+            for (int i = 0; i < StatusRules.DurationFor(StatusType.Poison); i++) resolver.TickStatuses(bystanderPlayer);
+            ok &= Expect(victim.StatusType == StatusType.None, "poison should wear off after its duration");
+
+            // Sleep always skips; paralysis skips ~25%.
+            victim.ApplyStatus(StatusType.Sleep, 3);
+            ok &= Expect(StatusRules.ActionSkipped(victim, new Rng(1), out _), "sleep should always skip the action");
+            victim.CureStatus();
+
+            victim.ApplyStatus(StatusType.Paralysis, 999);
+            var procRng = new Rng(99);
+            int skips = 0;
+            const int rolls = 2000;
+            for (int i = 0; i < rolls; i++)
+            {
+                if (StatusRules.ActionSkipped(victim, procRng, out _)) skips++;
+            }
+            float rate = (float)skips / rolls;
+            ok &= Expect(rate > 0.20f && rate < 0.30f, $"paralysis skip rate expected ~0.25, got {rate:F3}");
+            victim.CureStatus();
+
+            // Burn halves physical damage (same RNG seed → identical crit/roll).
+            var attacker = new Enemy(new Point(2, 2), GameData.GetSpecies("machop"), 20);
+            MoveDefinition chop = GameData.GetMove("karate-chop");
+            int healthy = DamageCalculator.Calculate(attacker, victim, chop, new Rng(5)).Damage;
+            attacker.ApplyStatus(StatusType.Burn, 5);
+            int burned = DamageCalculator.Calculate(attacker, victim, chop, new Rng(5)).Damage;
+            ok &= Expect(burned <= healthy / 2 + 1 && burned < healthy,
+                $"burned physical damage should be ~half ({healthy} -> {burned})");
+
+            if (ok) Console.WriteLine("Status: poison tick, sleep/paralysis skips, burn halving, move data — OK");
             return ok;
         }
 

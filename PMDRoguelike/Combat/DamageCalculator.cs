@@ -38,9 +38,11 @@ namespace PMDRoguelike.Combat
             bool crit = rng.NextFloat() < CritChance;
             float stab = attacker.Species.HasType(move.Type) ? StabMultiplier : 1f;
             float roll = 0.85f + rng.NextFloat() * 0.15f;
+            // Burn halves physical damage output (mainline rule).
+            float burn = attacker.StatusType == StatusType.Burn && move.Category == MoveCategory.Physical ? 0.5f : 1f;
 
             float baseDamage = ((2f * attacker.Level / 5f + 2f) * move.Power * attackStat / defenseStat) / 50f + 2f;
-            float total = baseDamage * stab * effectiveness * (crit ? CritMultiplier : 1f) * roll;
+            float total = baseDamage * stab * effectiveness * (crit ? CritMultiplier : 1f) * roll * burn;
 
             return new DamageResult
             {

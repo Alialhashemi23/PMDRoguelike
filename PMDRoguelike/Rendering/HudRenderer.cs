@@ -68,8 +68,24 @@ namespace PMDRoguelike.Rendering
             TextRenderer.DrawShadowed(spriteBatch, _font, $"{player.CurrentHP}/{player.Stats.HP}",
                 new Vector2(barX + barWidth + 8, barY - 4), Color.White, 0.7f);
 
+            if (player.StatusType != Combat.StatusType.None)
+            {
+                TextRenderer.DrawShadowed(spriteBatch, _font, Combat.StatusRules.Abbreviation(player.StatusType),
+                    new Vector2(barX + barWidth + 74, barY - 4), StatusColor(player.StatusType), 0.7f);
+            }
+
             TextRenderer.DrawShadowed(spriteBatch, _font, $"EXP {player.Exp}/{player.ExpToNextLevel}",
                 new Vector2(barX, barY + 16), new Color(170, 170, 180), 0.65f);
         }
+
+        /// <summary>Shared placeholder colors for status conditions (HUD + map dots).</summary>
+        public static Color StatusColor(Combat.StatusType type) => type switch
+        {
+            Combat.StatusType.Burn => new Color(240, 128, 48),
+            Combat.StatusType.Poison => new Color(160, 64, 160),
+            Combat.StatusType.Paralysis => new Color(248, 208, 48),
+            Combat.StatusType.Sleep => new Color(140, 136, 192),
+            _ => Color.White
+        };
     }
 }
