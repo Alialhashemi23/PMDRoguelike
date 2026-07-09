@@ -4,7 +4,9 @@ namespace PMDRoguelike.Dungeon
     {
         Wall,
         Floor,
-        Stairs
-        // Reserved for later phases: Water, Trap, Shop
+        Stairs,
+        /// <summary>Shop-room keeper: blocks movement, purely decorative otherwise.</summary>
+        Shopkeeper
+        // Reserved for later phases: Water, Trap
     }
 }

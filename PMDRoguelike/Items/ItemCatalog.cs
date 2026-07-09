@@ -41,13 +41,29 @@ namespace PMDRoguelike.Items
         public static Item Get(string id) =>
             _items.TryGetValue(id, out Item item) ? item : throw new KeyNotFoundException($"Unknown item '{id}'");
 
-        /// <summary>Roll a random item: tier by rarity weight, then uniform within the tier.</summary>
-        public static Item Roll(Rng rng)
+        /// <summary>
+        /// Tier probabilities at a given run depth (1 = first floor of the run).
+        /// Commons fade and legendaries climb as the player descends; actives stay flat.
+        /// Returns (common, uncommon, legendary, active) summing to 1.
+        /// </summary>
+        public static (float common, float uncommon, float legendary, float active) TierWeights(int depth)
         {
+            const float activeWeight = 0.05f;
+            float common = Math.Max(0.30f, CommonWeight - 0.02f * (depth - 1));
+            float legendary = Math.Min(0.25f, LegendaryWeight + 0.01f * (depth - 1));
+            float uncommon = 1f - common - legendary - activeWeight;
+            return (common, uncommon, legendary, activeWeight);
+        }
+
+        /// <summary>Roll a random item: tier by depth-shifted rarity weight, then uniform within the tier.</summary>
+        public static Item Roll(Rng rng, int depth = 1)
+        {
+            (float common, float uncommon, float legendary, _) = TierWeights(depth);
+
             float roll = rng.NextFloat();
-            ItemTier tier = roll < CommonWeight ? ItemTier.Common
-                : roll < CommonWeight + UncommonWeight ? ItemTier.Uncommon
-                : roll < CommonWeight + UncommonWeight + LegendaryWeight ? ItemTier.Legendary
+            ItemTier tier = roll < common ? ItemTier.Common
+                : roll < common + uncommon ? ItemTier.Uncommon
+                : roll < common + uncommon + legendary ? ItemTier.Legendary
                 : ItemTier.Active;
 
             var pool = _items.Values.Where(item => item.Tier == tier).ToList();

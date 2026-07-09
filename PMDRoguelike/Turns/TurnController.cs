@@ -192,14 +192,21 @@ namespace PMDRoguelike.Turns
             return slot;
         }
 
-        /// <summary>Walk-over pickup on the player's current tile.</summary>
+        /// <summary>Walk-over pickup (items and loose Poké) on the player's current tile.</summary>
         private void TryPickUpItem()
         {
             Items.GroundItem ground = _map.GroundItemAt(_player.GridPosition);
-            if (ground == null) return;
-            if (_player.Inventory.AddItem(ground.Item, _log))
+            if (ground != null && _player.Inventory.AddItem(ground.Item, _log))
             {
                 _map.GroundItems.Remove(ground);
+            }
+
+            Items.MoneyPile pile = _map.MoneyPileAt(_player.GridPosition);
+            if (pile != null)
+            {
+                _player.AddPoke(pile.Amount);
+                _log.Add($"Picked up {pile.Amount} Poké!");
+                _map.MoneyPiles.Remove(pile);
             }
         }
 

@@ -114,15 +114,15 @@ reach a stubbed victory; a stubbed game-over exists for later.
 
 ---
 
-## Phase 6: Economy — Poké, Chests & Shops
+## ✅ Phase 6: Economy — Poké, Chests & Shops — DONE
 
 **Goal:** the acquisition loop: earn currency, spend it on chests and shops.
 
-- [ ] Poké currency: drops from enemies/on the floor, HUD counter, persists across floors within a run
-- [ ] Chests: generator places 0–2 per floor; opening costs Poké (price scales by depth); rolls a tier-weighted item
-- [ ] Shop rooms: occasional special room with a shopkeeper tile and priced items on display; browse/buy UI; stealing = not a thing (MVP)
-- [ ] Item pools: per-dungeon/depth weighting so later floors trend rarer
-- [ ] Smoke test: chest/shop generation counts over many seeds, price scaling assertions
+- [x] Poké currency: drops from enemies/on the floor, HUD counter, persists across floors within a run
+- [x] Chests: generator places 0–2 per floor; opening costs Poké (price scales by depth); rolls a tier-weighted item
+- [x] Shop rooms: occasional special room with a shopkeeper tile and priced items on display; browse/buy UI; stealing = not a thing (MVP)
+- [x] Item pools: per-dungeon/depth weighting so later floors trend rarer
+- [x] Smoke test: chest/shop generation counts over many seeds, price scaling assertions
 
 **Playable check:** hoard Poké on floor 1, buy something green on floor 3, regret not saving for the chest.
 

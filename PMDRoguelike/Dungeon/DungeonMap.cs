@@ -28,6 +28,15 @@ namespace PMDRoguelike.Dungeon
         /// <summary>Items lying on the floor, picked up by walking over them.</summary>
         public List<Items.GroundItem> GroundItems { get; } = new List<Items.GroundItem>();
 
+        /// <summary>Locked chests (pay Poké to open).</summary>
+        public List<Items.Chest> Chests { get; } = new List<Items.Chest>();
+
+        /// <summary>Items on display in a shop room (pay to obtain).</summary>
+        public List<Items.ShopItem> ShopItems { get; } = new List<Items.ShopItem>();
+
+        /// <summary>Loose Poké piles.</summary>
+        public List<Items.MoneyPile> MoneyPiles { get; } = new List<Items.MoneyPile>();
+
         public Items.GroundItem GroundItemAt(Point p)
         {
             foreach (Items.GroundItem item in GroundItems)
@@ -36,6 +45,38 @@ namespace PMDRoguelike.Dungeon
             }
             return null;
         }
+
+        public Items.Chest ChestAt(Point p)
+        {
+            foreach (Items.Chest chest in Chests)
+            {
+                if (chest.Position == p) return chest;
+            }
+            return null;
+        }
+
+        public Items.ShopItem ShopItemAt(Point p)
+        {
+            foreach (Items.ShopItem item in ShopItems)
+            {
+                if (item.Position == p) return item;
+            }
+            return null;
+        }
+
+        public Items.MoneyPile MoneyPileAt(Point p)
+        {
+            foreach (Items.MoneyPile pile in MoneyPiles)
+            {
+                if (pile.Position == p) return pile;
+            }
+            return null;
+        }
+
+        /// <summary>Is this tile free of every special feature (for placement rolls)?</summary>
+        public bool IsFeatureFree(Point p) =>
+            GroundItemAt(p) == null && ChestAt(p) == null && ShopItemAt(p) == null &&
+            MoneyPileAt(p) == null && p != StairsPosition;
 
         public DungeonMap(int width, int height)
         {

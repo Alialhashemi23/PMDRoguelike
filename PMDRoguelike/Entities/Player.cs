@@ -23,6 +23,9 @@ namespace PMDRoguelike.Entities
 
         public int Exp { get; private set; }
 
+        /// <summary>Poké currency carried this run (persists across floors).</summary>
+        public int Poke { get; private set; }
+
         /// <summary>RoR-style item collection (passive stacks + active slots).</summary>
         public Items.Inventory Inventory { get; }
 
@@ -42,6 +45,10 @@ namespace PMDRoguelike.Entities
             // Null during the base constructor (before Inventory is assigned).
             return Inventory == null ? stats : Inventory.ApplyStatModifiers(stats);
         }
+
+        public void AddPoke(int amount) => Poke += Math.Max(0, amount);
+
+        public void SpendPoke(int amount) => Poke = Math.Max(0, Poke - Math.Max(0, amount));
 
         public int ExpToNextLevel => ExpRequired(Level);
 

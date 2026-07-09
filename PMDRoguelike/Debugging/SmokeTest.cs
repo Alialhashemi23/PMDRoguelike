@@ -48,6 +48,7 @@ namespace PMDRoguelike.Debugging
             ok &= CombatGoldenTests();
             ok &= StatusGoldenTests();
             ok &= ItemGoldenTests();
+            ok &= EconomyGoldenTests(seed);
 
             Console.WriteLine(ok ? "SMOKE TEST PASSED" : "SMOKE TEST FAILED");
             return ok ? 0 : 1;
@@ -163,6 +164,120 @@ namespace PMDRoguelike.Debugging
 
             if (ok) Console.WriteLine("Combat: scripted battle (PP, faint, EXP, level-up, Struggle) — OK");
             return ok;
+        }
+
+        // ------------------------------------------------------------------
+        // Economy tests (Phase 6)
+        // ------------------------------------------------------------------
+
+        private static bool EconomyGoldenTests(int seed)
+        {
+            bool ok = true;
+
+            // --- Price scaling with depth.
+            ok &= Expect(Items.Economy.BaseChestPrice(1) == 55, $"chest price at depth 1 should be 55, got {Items.Economy.BaseChestPrice(1)}");
+            ok &= Expect(Items.Economy.BaseChestPrice(13) == 235, $"chest price at depth 13 should be 235, got {Items.Economy.BaseChestPrice(13)}");
+            ok &= Expect(Items.Economy.BaseItemPrice(Items.ItemTier.Legendary, 1) > Items.Economy.BaseItemPrice(Items.ItemTier.Common, 1),
+                "legendaries should cost more than commons");
+            ok &= Expect(Items.Economy.BaseItemPrice(Items.ItemTier.Common, 10) > Items.Economy.BaseItemPrice(Items.ItemTier.Common, 1),
+                "prices should grow with depth");
+
+            // --- Tier weights shift with depth (and always sum to 1).
+            var shallow = Items.ItemRegistry.TierWeights(1);
+            var deep = Items.ItemRegistry.TierWeights(13);
+            ok &= Expect(Math.Abs(shallow.common - 0.55f) < 0.001f && Math.Abs(shallow.legendary - 0.10f) < 0.001f,
+                $"depth-1 weights should be 0.55/0.10 common/legendary, got {shallow.common}/{shallow.legendary}");
+            ok &= Expect(deep.common < shallow.common && deep.legendary > shallow.legendary,
+                "deep floors should trend rarer");
+            float sum = deep.common + deep.uncommon + deep.legendary + deep.active;
+            ok &= Expect(Math.Abs(sum - 1f) < 0.001f, $"tier weights must sum to 1, got {sum}");
+
+            // --- Generation legality across many seeds.
+            int shopsSeen = 0, chestsSeen = 0;
+            for (int s = 0; s < 30; s++)
+            {
+                var genRng = new Rng(seed + s * 101);
+                GeneratedFloor floor = new DungeonGenerator(genRng).Generate();
+                DungeonMap map = floor.Map;
+                EconomyPopulator.Populate(map, floor.PlayerSpawn, genRng, depth: 1 + s % 13);
+
+                ok &= Expect(map.Chests.Count <= EconomyPopulator.MaxChestsPerFloor,
+                    $"seed {s}: too many chests ({map.Chests.Count})");
+                ok &= Expect(map.MoneyPiles.Count >= 1 && map.MoneyPiles.Count <= 3,
+                    $"seed {s}: money piles out of range ({map.MoneyPiles.Count})");
+                chestsSeen += map.Chests.Count;
+
+                foreach (var chest in map.Chests)
+                    ok &= Expect(map.IsWalkable(chest.Position) && chest.Position != map.StairsPosition,
+                        $"seed {s}: chest on illegal tile");
+                foreach (var pile in map.MoneyPiles)
+                    ok &= Expect(map.IsWalkable(pile.Position), $"seed {s}: money pile on illegal tile");
+
+                bool hasKeeper = false;
+                for (int x = 0; x < map.Width && !hasKeeper; x++)
+                    for (int y = 0; y < map.Height && !hasKeeper; y++)
+                        hasKeeper = map.GetTile(new Point(x, y)).Type == TileType.Shopkeeper;
+
+                if (map.ShopItems.Count > 0)
+                {
+                    shopsSeen++;
+                    ok &= Expect(hasKeeper, $"seed {s}: shop items without a shopkeeper");
+                    foreach (var stock in map.ShopItems)
+                        ok &= Expect(map.IsWalkable(stock.Position) && stock.Price > 0, $"seed {s}: bad shop stock");
+                }
+
+                // The shopkeeper pillar must never cut off the stairs.
+                ok &= Expect(FindPath(map, floor.PlayerSpawn, map.StairsPosition) != null,
+                    $"seed {s}: stairs unreachable after economy population");
+            }
+            ok &= Expect(shopsSeen > 0, "expected at least one shop across 30 seeds");
+            ok &= Expect(chestsSeen > 0, "expected at least one chest across 30 seeds");
+
+            // --- Buy and chest flows.
+            var arena = new DungeonMap(7, 7);
+            for (int x = 1; x < 6; x++)
+                for (int y = 1; y < 6; y++)
+                    arena.SetTile(new Point(x, y), TileType.Floor);
+            arena.StairsPosition = new Point(5, 5);
+
+            var log = new MessageLog();
+            var rng = new Rng(seed);
+            var buyer = new Player(new Point(2, 2), GameData.GetSpecies("charmander"), 5);
+            arena.Actors.Add(buyer);
+
+            var stockItem = new Items.ShopItem(new Point(2, 2), Items.ItemRegistry.Get("oran-berry"), 80);
+            arena.ShopItems.Add(stockItem);
+            ok &= Expect(!Items.Economy.TryBuy(buyer, arena, stockItem, log), "buying with 0 Poké should fail");
+            buyer.AddPoke(100);
+            ok &= Expect(Items.Economy.TryBuy(buyer, arena, stockItem, log), "buying with enough Poké should succeed");
+            ok &= Expect(buyer.Poke == 20, $"purchase should deduct the price, wallet has {buyer.Poke}");
+            ok &= Expect(buyer.Inventory.StacksOf("oran-berry") == 1, "purchased item should be owned");
+            ok &= Expect(arena.ShopItems.Count == 0, "sold stock should leave the display");
+
+            var chestToOpen = new Items.Chest(new Point(3, 3), 50);
+            arena.Chests.Add(chestToOpen);
+            ok &= Expect(!Items.Economy.TryOpenChest(buyer, arena, chestToOpen, log, rng, depth: 3),
+                "opening a chest without enough Poké should fail");
+            buyer.AddPoke(200);
+            int passivesBefore = TotalPassives(buyer);
+            int activesBefore = buyer.Inventory.Actives.Count;
+            ok &= Expect(Items.Economy.TryOpenChest(buyer, arena, chestToOpen, log, rng, depth: 3),
+                "opening a paid chest should succeed");
+            bool gotSomething = TotalPassives(buyer) > passivesBefore ||
+                                buyer.Inventory.Actives.Count > activesBefore ||
+                                arena.GroundItems.Count > 0;
+            ok &= Expect(gotSomething, "chest should always yield an item");
+            ok &= Expect(arena.Chests.Count == 0, "opened chest should be removed");
+
+            if (ok) Console.WriteLine("Economy: pricing, depth-weighted tiers, generation legality, buy/chest flows — OK");
+            return ok;
+        }
+
+        private static int TotalPassives(Player player)
+        {
+            int total = 0;
+            foreach (var item in player.Inventory.Passives) total += player.Inventory.StacksOf(item.Id);
+            return total;
         }
 
         // ------------------------------------------------------------------

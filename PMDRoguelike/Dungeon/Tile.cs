@@ -17,10 +17,11 @@ namespace PMDRoguelike.Dungeon
             {
                 TileType.Wall => "tile.wall",
                 TileType.Stairs => "tile.stairs",
+                TileType.Shopkeeper => "tile.shopkeeper",
                 _ => "tile.floor"
             };
         }
 
-        public readonly bool IsWalkable => Type != TileType.Wall;
+        public readonly bool IsWalkable => Type != TileType.Wall && Type != TileType.Shopkeeper;
     }
 }

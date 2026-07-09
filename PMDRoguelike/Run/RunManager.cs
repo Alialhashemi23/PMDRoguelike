@@ -28,6 +28,17 @@ namespace PMDRoguelike.Run
 
         public DungeonDefinition CurrentDungeon => _dungeons[DungeonIndex];
 
+        /// <summary>Overall run depth: 1-based floor index across all dungeons (drives prices/rarity).</summary>
+        public int Depth
+        {
+            get
+            {
+                int depth = FloorNumber;
+                for (int i = 0; i < DungeonIndex; i++) depth += _dungeons[i].Floors;
+                return depth;
+            }
+        }
+
         public bool IsFinalFloorOfDungeon => FloorNumber >= CurrentDungeon.Floors;
 
         public RunManager(IReadOnlyList<DungeonDefinition> dungeons)

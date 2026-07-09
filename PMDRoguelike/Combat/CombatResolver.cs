@@ -218,7 +218,9 @@ namespace PMDRoguelike.Combat
             if (attacker is Player player && victim is Enemy enemy)
             {
                 int exp = Math.Max(1, enemy.Species.ExpYield * enemy.Level / 7);
-                _log.Add($"Gained {exp} EXP!");
+                int poke = Economy.FaintReward(enemy.Level, _rng);
+                player.AddPoke(poke);
+                _log.Add($"Gained {exp} EXP and {poke} Poké!");
                 player.AddExp(exp, _log);
 
                 // Low-rate item drop where the enemy fell.

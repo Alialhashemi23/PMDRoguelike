@@ -23,7 +23,7 @@ namespace PMDRoguelike.Rendering
         }
 
         public void Draw(SpriteBatch spriteBatch, RunManager run, Player player, int floorTurns,
-            bool onStairs, int viewportWidth, int viewportHeight)
+            string prompt, int viewportWidth, int viewportHeight)
         {
             if (_font == null) return;
 
@@ -36,6 +36,11 @@ namespace PMDRoguelike.Rendering
             Vector2 turnsSize = _font.MeasureString(turns);
             TextRenderer.DrawShadowed(spriteBatch, _font, turns,
                 new Vector2(viewportWidth - turnsSize.X - 12, 8), new Color(200, 200, 200));
+
+            string poke = $"Poké: {player.Poke}";
+            Vector2 pokeSize = _font.MeasureString(poke) * 0.8f;
+            TextRenderer.DrawShadowed(spriteBatch, _font, poke,
+                new Vector2(viewportWidth - pokeSize.X - 12, 64), new Color(235, 200, 90), 0.8f);
 
             TextRenderer.DrawShadowed(spriteBatch, _font, "Shift: moves   Tab: items",
                 new Vector2(viewportWidth - 246, 40), new Color(140, 140, 150), 0.7f);
@@ -55,9 +60,8 @@ namespace PMDRoguelike.Rendering
                     new Vector2(viewportWidth - size.X - 12, viewportHeight - 30 - i * 22), color, 0.7f);
             }
 
-            if (onStairs)
+            if (prompt != null)
             {
-                string prompt = "Press Enter to descend";
                 Vector2 promptSize = _font.MeasureString(prompt);
                 TextRenderer.DrawShadowed(spriteBatch, _font, prompt,
                     new Vector2((viewportWidth - promptSize.X) / 2f, viewportHeight - promptSize.Y - 140),

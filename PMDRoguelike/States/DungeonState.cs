@@ -80,6 +80,7 @@ namespace PMDRoguelike.States
             }
 
             SpawnFloorItems(floor);
+            EconomyPopulator.Populate(_map, floor.PlayerSpawn, Game.Rng, _run.Depth);
 
             _turns = new TurnController(_map, _player, Game.Rng, _log);
             _camera = new Camera();
@@ -158,9 +159,9 @@ namespace PMDRoguelike.States
                 return;
             }
 
-            if (CanDescend() && (keyboard.WasKeyJustPressed(Keys.Enter) || keyboard.WasKeyJustPressed(Keys.Z)))
+            if (CanInteract() && (keyboard.WasKeyJustPressed(Keys.Enter) || keyboard.WasKeyJustPressed(Keys.Z)))
             {
-                Descend();
+                HandleInteraction();
                 return;
             }
 
@@ -169,10 +170,45 @@ namespace PMDRoguelike.States
                 (float)gameTime.ElapsedGameTime.TotalSeconds);
         }
 
-        private bool CanDescend() =>
-            _turns.Phase == TurnPhase.AwaitingInput &&
-            !_player.IsAnimating &&
-            _player.GridPosition == _map.StairsPosition;
+        private bool CanInteract() => _turns.Phase == TurnPhase.AwaitingInput && !_player.IsAnimating;
+
+        /// <summary>Shop purchase and chest opening take precedence over the stairs.</summary>
+        private void HandleInteraction()
+        {
+            Point pos = _player.GridPosition;
+
+            Items.ShopItem shopItem = _map.ShopItemAt(pos);
+            if (shopItem != null)
+            {
+                Items.Economy.TryBuy(_player, _map, shopItem, _log);
+                return;
+            }
+
+            Items.Chest chest = _map.ChestAt(pos);
+            if (chest != null)
+            {
+                Items.Economy.TryOpenChest(_player, _map, chest, _log, Game.Rng, _run.Depth);
+                return;
+            }
+
+            if (pos == _map.StairsPosition) Descend();
+        }
+
+        /// <summary>Contextual prompt for the tile the player is standing on.</summary>
+        private string CurrentPrompt()
+        {
+            if (!CanInteract()) return null;
+            Point pos = _player.GridPosition;
+
+            Items.ShopItem shopItem = _map.ShopItemAt(pos);
+            if (shopItem != null) return $"Buy {shopItem.Item.Name} — {shopItem.Price} Poké (Enter)";
+
+            Items.Chest chest = _map.ChestAt(pos);
+            if (chest != null) return $"Open chest — {chest.Price} Poké (Enter)";
+
+            if (pos == _map.StairsPosition) return "Press Enter to descend";
+            return null;
+        }
 
         private void Descend()
         {
@@ -207,7 +243,7 @@ namespace PMDRoguelike.States
             spriteBatch.End();
 
             spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-            _hud.Draw(spriteBatch, _run, _player, _turns.TurnCount, CanDescend(), viewport.Width, viewport.Height);
+            _hud.Draw(spriteBatch, _run, _player, _turns.TurnCount, CurrentPrompt(), viewport.Width, viewport.Height);
             _log.Draw(spriteBatch, font, pixel, viewport.Width, viewport.Height);
 
             if (KeyboardManager.Instance.IsKeyDown(Keys.LeftShift) || KeyboardManager.Instance.IsKeyDown(Keys.RightShift))
