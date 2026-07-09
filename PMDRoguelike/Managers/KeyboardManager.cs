@@ -1,33 +1,50 @@
-﻿using Microsoft.Xna.Framework.Input;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Xna.Framework.Input;
+using PMDRoguelike.Core;
 
 namespace PMDRoguelike.Managers
 {
+    /// <summary>
+    /// Tracks current and previous keyboard state so edge events
+    /// (just pressed / just released) can be detected. Update() must be
+    /// called exactly once per frame, before any queries.
+    /// </summary>
     public class KeyboardManager
     {
         private static KeyboardManager _instance;
-        private KeyboardManager() { }
         public static KeyboardManager Instance => _instance ??= new KeyboardManager();
-        public void Initialize()
+
+        private KeyboardState _current;
+        private KeyboardState _previous;
+
+        private KeyboardManager()
         {
-            // Initialize keyboard state or any other setup if needed
+            _current = Keyboard.GetState();
+            _previous = _current;
         }
+
         public void Update()
         {
-            // Update keyboard state or handle input
-            // This is where you would check for key presses, etc.
+            _previous = _current;
+            _current = Keyboard.GetState();
         }
-        public bool IsKeyPressed(Keys key)
+
+        public bool IsKeyDown(Keys key) => _current.IsKeyDown(key);
+
+        public bool WasKeyJustPressed(Keys key) => _current.IsKeyDown(key) && _previous.IsKeyUp(key);
+
+        public bool WasKeyJustReleased(Keys key) => _current.IsKeyUp(key) && _previous.IsKeyDown(key);
+
+        /// <summary>
+        /// Current held movement direction from arrow keys or WASD,
+        /// combining two cardinals into a diagonal.
+        /// </summary>
+        public Direction GetHeldDirection()
         {
-            return Keyboard.GetState().IsKeyDown(key);
-        }
-        public bool IsKeyReleased(Keys key)
-        {
-            return Keyboard.GetState().IsKeyUp(key);
+            bool up = _current.IsKeyDown(Keys.Up) || _current.IsKeyDown(Keys.W);
+            bool down = _current.IsKeyDown(Keys.Down) || _current.IsKeyDown(Keys.S);
+            bool left = _current.IsKeyDown(Keys.Left) || _current.IsKeyDown(Keys.A);
+            bool right = _current.IsKeyDown(Keys.Right) || _current.IsKeyDown(Keys.D);
+            return DirectionExtensions.FromInput(up, down, left, right);
         }
     }
 }

@@ -1,11 +1,6 @@
-﻿using Microsoft.Xna.Framework.Content;
 using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PMDRoguelike.Constants
 {
@@ -16,42 +11,141 @@ namespace PMDRoguelike.Constants
 
         public static GameConstants Instance => _instance ??= new GameConstants();
 
-        private GameConstants() { }
-
-        public void LoadConstants(ContentManager content)
+        private GameConstants()
         {
+            // Always start with valid defaults so getters never null-ref,
+            // even if LoadConstants is never called (e.g. in tests).
+            _constants = CreateDefaultConstants();
+        }
+
+        /// <summary>
+        /// Load constants from Constants/GameConstants.json next to the executable.
+        /// Falls back to hardcoded defaults if the file is missing or malformed.
+        /// </summary>
+        public void LoadConstants()
+        {
+            string path = Path.Combine(AppContext.BaseDirectory, "Constants", "GameConstants.json");
             try
             {
-                // Load the JSON file using Content Manager
-                string json = File.ReadAllText(
-                    Path.Combine(content.RootDirectory, "GameConstants.json"));
-
-                _constants = JsonConvert.DeserializeObject<GameConstantsData>(json);
-                Console.WriteLine("Game constants loaded successfully.");
+                string json = File.ReadAllText(path);
+                _constants = JsonConvert.DeserializeObject<GameConstantsData>(json)
+                             ?? throw new InvalidDataException("GameConstants.json deserialized to null.");
+                Console.WriteLine($"Game constants loaded from {path}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading game constants: {ex.Message}");
-                // Use default values if loading fails
+                Console.WriteLine($"Error loading game constants ({path}): {ex.Message} — using defaults.");
                 _constants = CreateDefaultConstants();
             }
         }
 
-        private GameConstantsData CreateDefaultConstants()
+        private static GameConstantsData CreateDefaultConstants() => new GameConstantsData
         {
-            // Return hardcoded defaults as fallback
-            return new GameConstantsData
+            Graphics = new GraphicsConstants
             {
-                Graphics = new GraphicsConstants { TileSize = 32 },
-                // ... etc, abbreviated for brevity
-            };
-        }
+                VirtualResolutionWidth = 1280,
+                VirtualResolutionHeight = 720,
+                DefaultWindowWidth = 1280,
+                DefaultWindowHeight = 720,
+                TileSize = 32,
+                PokemonSpriteSize = 32,
+                ItemSpriteSize = 16
+            },
+            GameMechanics = new GameMechanicsConstants
+            {
+                Movement = new MovementConstants
+                {
+                    PlayerMovementSpeed = 200f,
+                    EnemyMovementSpeed = 150f,
+                    SlideDurationMs = 180f,
+                    InputDelayMs = 60f
+                },
+                Turns = new TurnConstants { TurnDurationMs = 500f },
+                Experience = new ExperienceConstants { BaseExpRequired = 100, ExpScaleFactor = 1.5f, MaxLevel = 100 }
+            },
+            WorldGeneration = new WorldGenerationConstants
+            {
+                Dungeons = new DungeonConstants
+                {
+                    FloorWidth = 50,
+                    FloorHeight = 35,
+                    MinRoomSize = 5,
+                    MaxRoomSize = 15,
+                    MaxRoomsPerFloor = 10,
+                    MinCorridorLength = 1,
+                    MaxCorridorLength = 10
+                },
+                Spawning = new SpawningConstants
+                {
+                    EnemySpawnRate = 0.3f,
+                    ItemSpawnRate = 0.1f,
+                    TrapSpawnRate = 0.05f,
+                    MinEnemiesPerFloor = 3,
+                    MaxEnemiesPerFloor = 5
+                }
+            },
+            Combat = new CombatConstants
+            {
+                BaseStats = new BaseStatsConstants { BaseAttackDamage = 10, BaseDefense = 5, BaseHP = 50 },
+                TypeEffectiveness = new TypeEffectivenessConstants
+                {
+                    SuperEffective = 2f,
+                    NotVeryEffective = 0.5f,
+                    NoEffect = 0f,
+                    Neutral = 1f
+                },
+                StatusEffects = new StatusEffectsConstants
+                {
+                    PoisonDuration = 5,
+                    ParalyzeDuration = 3,
+                    SleepDuration = 3,
+                    BurnDuration = 5
+                }
+            },
+            Input = new InputConstants
+            {
+                KeyBindings = new KeyBindingsConstants
+                {
+                    Up = "Up",
+                    Down = "Down",
+                    Left = "Left",
+                    Right = "Right",
+                    Confirm = "Z",
+                    Cancel = "X",
+                    Menu = "C"
+                }
+            },
+            Assets = new AssetsConstants
+            {
+                Paths = new PathsConstants
+                {
+                    Sprites = "Sprites/",
+                    Audio = "Audio/",
+                    Fonts = "Fonts/",
+                    Maps = "Maps/",
+                    Data = "Data/"
+                }
+            },
+            AI = new AIConstants
+            {
+                Parameters = new AIParametersConstants { DetectionRange = 5, AttackRange = 1, ThinkDelay = 0.2f }
+            },
+            Debug = new DebugConstants
+            {
+                Settings = new DebugSettingsConstants { ShowCollisionBoxes = false, ShowFPS = true, EnableCheats = false }
+            }
+        };
 
-        // Convenience getters
+        /// <summary>Full constants tree for systems that need direct access.</summary>
+        public GameConstantsData Data => _constants;
+
+        // Convenience getters for the most commonly used values
         public int TileSize => _constants.Graphics.TileSize;
-        public float PlayerMovementSpeed => _constants.GameMechanics.Movement.PlayerMovementSpeed;
-        public int MaxRoomsPerFloor => _constants.WorldGeneration.Dungeons.MaxRoomsPerFloor;
-        // Add more getters as needed
+        public int WindowWidth => _constants.Graphics.DefaultWindowWidth;
+        public int WindowHeight => _constants.Graphics.DefaultWindowHeight;
+        public float SlideDurationMs => _constants.GameMechanics.Movement.SlideDurationMs;
+        public float InputDelayMs => _constants.GameMechanics.Movement.InputDelayMs;
+        public int DetectionRange => _constants.AI.Parameters.DetectionRange;
     }
 
     public class GameConstantsData
@@ -88,6 +182,10 @@ namespace PMDRoguelike.Constants
     {
         public float PlayerMovementSpeed { get; set; }
         public float EnemyMovementSpeed { get; set; }
+        /// <summary>How long the tile-to-tile slide animation lasts.</summary>
+        public float SlideDurationMs { get; set; }
+        /// <summary>Grace period after a direction key is pressed, so diagonals register cleanly.</summary>
+        public float InputDelayMs { get; set; }
     }
 
     public class TurnConstants
@@ -110,6 +208,8 @@ namespace PMDRoguelike.Constants
 
     public class DungeonConstants
     {
+        public int FloorWidth { get; set; }
+        public int FloorHeight { get; set; }
         public int MinRoomSize { get; set; }
         public int MaxRoomSize { get; set; }
         public int MaxRoomsPerFloor { get; set; }
@@ -122,6 +222,8 @@ namespace PMDRoguelike.Constants
         public float EnemySpawnRate { get; set; }
         public float ItemSpawnRate { get; set; }
         public float TrapSpawnRate { get; set; }
+        public int MinEnemiesPerFloor { get; set; }
+        public int MaxEnemiesPerFloor { get; set; }
     }
 
     public class CombatConstants

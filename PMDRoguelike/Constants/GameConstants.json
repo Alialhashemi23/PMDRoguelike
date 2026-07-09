@@ -11,7 +11,9 @@
   "gameMechanics": {
     "movement": {
       "playerMovementSpeed": 200.0,
-      "enemyMovementSpeed": 150.0
+      "enemyMovementSpeed": 150.0,
+      "slideDurationMs": 180.0,
+      "inputDelayMs": 60.0
     },
     "turns": {
       "turnDurationMs": 500.0
@@ -24,6 +26,8 @@
   },
   "worldGeneration": {
     "dungeons": {
+      "floorWidth": 50,
+      "floorHeight": 35,
       "minRoomSize": 5,
       "maxRoomSize": 15,
       "maxRoomsPerFloor": 10,
@@ -33,7 +37,9 @@
     "spawning": {
       "enemySpawnRate": 0.3,
       "itemSpawnRate": 0.1,
-      "trapSpawnRate": 0.05
+      "trapSpawnRate": 0.05,
+      "minEnemiesPerFloor": 3,
+      "maxEnemiesPerFloor": 5
     }
   },
   "combat": {
