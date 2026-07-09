@@ -37,8 +37,23 @@ namespace PMDRoguelike.Rendering
             TextRenderer.DrawShadowed(spriteBatch, _font, turns,
                 new Vector2(viewportWidth - turnsSize.X - 12, 8), new Color(200, 200, 200));
 
-            TextRenderer.DrawShadowed(spriteBatch, _font, "Hold Shift: moves",
-                new Vector2(viewportWidth - 172, 40), new Color(140, 140, 150), 0.7f);
+            TextRenderer.DrawShadowed(spriteBatch, _font, "Shift: moves   Tab: items",
+                new Vector2(viewportWidth - 246, 40), new Color(140, 140, 150), 0.7f);
+
+            // Active item slots, bottom-right.
+            for (int i = 0; i < Items.Inventory.MaxActiveSlots; i++)
+            {
+                string key = i == 0 ? "Q" : "E";
+                string label = i < player.Inventory.Actives.Count
+                    ? $"[{key}] {player.Inventory.Actives[i].Name}"
+                    : $"[{key}] —";
+                Color color = i < player.Inventory.Actives.Count
+                    ? Items.Item.TierColor(Items.ItemTier.Active)
+                    : new Color(110, 110, 120);
+                Vector2 size = _font.MeasureString(label) * 0.7f;
+                TextRenderer.DrawShadowed(spriteBatch, _font, label,
+                    new Vector2(viewportWidth - size.X - 12, viewportHeight - 30 - i * 22), color, 0.7f);
+            }
 
             if (onStairs)
             {

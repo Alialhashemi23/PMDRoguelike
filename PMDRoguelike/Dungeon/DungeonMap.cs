@@ -25,6 +25,18 @@ namespace PMDRoguelike.Dungeon
         /// <summary>All actors on this floor. Index 0 is conventionally the player.</summary>
         public List<Actor> Actors { get; } = new List<Actor>();
 
+        /// <summary>Items lying on the floor, picked up by walking over them.</summary>
+        public List<Items.GroundItem> GroundItems { get; } = new List<Items.GroundItem>();
+
+        public Items.GroundItem GroundItemAt(Point p)
+        {
+            foreach (Items.GroundItem item in GroundItems)
+            {
+                if (item.Position == p) return item;
+            }
+            return null;
+        }
+
         public DungeonMap(int width, int height)
         {
             Width = width;

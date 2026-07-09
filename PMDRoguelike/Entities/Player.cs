@@ -23,11 +23,25 @@ namespace PMDRoguelike.Entities
 
         public int Exp { get; private set; }
 
+        /// <summary>RoR-style item collection (passive stacks + active slots).</summary>
+        public Items.Inventory Inventory { get; }
+
         /// <summary>Moves earned by leveling while already knowing four — resolved via the learn prompt.</summary>
         public List<MoveDefinition> PendingMoveLearns { get; } = new List<MoveDefinition>();
 
         public Player(Point gridPosition, SpeciesDefinition species, int level)
-            : base(gridPosition, species, level) { }
+            : base(gridPosition, species, level)
+        {
+            Inventory = new Items.Inventory(this);
+        }
+
+        /// <summary>Item stat modifiers layer on top of level-derived stats.</summary>
+        protected override StatBlock ComputeStats()
+        {
+            StatBlock stats = base.ComputeStats();
+            // Null during the base constructor (before Inventory is assigned).
+            return Inventory == null ? stats : Inventory.ApplyStatModifiers(stats);
+        }
 
         public int ExpToNextLevel => ExpRequired(Level);
 
@@ -51,7 +65,7 @@ namespace PMDRoguelike.Entities
             {
                 Exp -= ExpToNextLevel;
                 Level++;
-                RecalculateStats();
+                RefreshStats();
                 log.Add($"{DisplayName} grew to level {Level}!");
 
                 foreach (LearnsetEntry entry in Species.Learnset.Where(e => e.Level == Level))
@@ -91,6 +105,9 @@ namespace PMDRoguelike.Entities
                     return new AttackAction(i);
                 }
             }
+
+            if (keyboard.WasKeyJustPressed(Keys.Q)) { _heldMs = 0f; return new UseItemAction(0); }
+            if (keyboard.WasKeyJustPressed(Keys.E)) { _heldMs = 0f; return new UseItemAction(1); }
 
             Direction held = keyboard.GetHeldDirection();
             if (held == Direction.None)

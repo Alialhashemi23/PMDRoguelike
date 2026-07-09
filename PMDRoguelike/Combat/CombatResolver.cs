@@ -1,30 +1,39 @@
+using PMDRoguelike.Constants;
 using PMDRoguelike.Core;
 using PMDRoguelike.Data;
 using PMDRoguelike.Dungeon;
 using PMDRoguelike.Entities;
+using PMDRoguelike.Items;
 using PMDRoguelike.UI;
 using System;
 
 namespace PMDRoguelike.Combat
 {
     /// <summary>
-    /// Executes attacks: PP, targeting, damage, faint handling, and EXP awards.
-    /// Pure game logic — writes to the message log, never to the screen.
+    /// Executes attacks: PP, targeting, damage, item hooks, faint handling, EXP
+    /// awards, and drops. Pure game logic — writes to the message log, never to
+    /// the screen.
     /// </summary>
     public class CombatResolver
     {
         private readonly DungeonMap _map;
         private readonly MessageLog _log;
         private readonly Rng _rng;
+        private readonly Player _player;
+
+        /// <summary>Shared context handed to item hooks.</summary>
+        public ItemContext Context { get; }
 
         /// <summary>Set when the player faints; the state machine reads this to end the run.</summary>
         public bool PlayerFainted { get; private set; }
 
-        public CombatResolver(DungeonMap map, MessageLog log, Rng rng)
+        public CombatResolver(DungeonMap map, MessageLog log, Rng rng, Player player)
         {
             _map = map;
             _log = log;
             _rng = rng;
+            _player = player;
+            Context = new ItemContext { Player = player, Map = map, Log = log, Rng = rng, Combat = this };
         }
 
         /// <summary>
@@ -39,6 +48,9 @@ namespace PMDRoguelike.Combat
 
             attacker.BeginLunge();
             _log.Add($"{attacker.DisplayName} used {move.Name}!");
+
+            // Item hooks that fire on any real move use (Choice Band lock).
+            if (attacker == _player && !isStruggle) _player.Inventory.OnMoveUsed(Context, move);
 
             Actor target = Targeting.FindTarget(_map, attacker, move);
             if (target == null)
@@ -62,7 +74,8 @@ namespace PMDRoguelike.Combat
                 return;
             }
 
-            DamageResult result = DamageCalculator.Calculate(attacker, target, move, _rng);
+            float critBonus = attacker == _player ? _player.Inventory.CritChanceBonus() : 0f;
+            DamageResult result = DamageCalculator.Calculate(attacker, target, move, _rng, critBonus);
             if (result.Missed)
             {
                 _log.Add($"{attacker.DisplayName}'s attack missed!");
@@ -75,7 +88,11 @@ namespace PMDRoguelike.Combat
                 return;
             }
 
-            target.TakeDamage(result.Damage);
+            int damage = result.Damage;
+            if (attacker == _player) damage = _player.Inventory.ModifyOutgoingDamage(damage, move);
+            if (target == _player) damage = _player.Inventory.ModifyLethalDamage(damage, _player.CurrentHP, Context);
+
+            target.TakeDamage(damage);
             target.FlashHit();
 
             if (result.IsCritical) _log.Add("A critical hit!");
@@ -91,13 +108,43 @@ namespace PMDRoguelike.Combat
                 TryInflictStatus(target, move.InflictStatus, move.InflictChance);
             }
 
+            // Post-damage item hooks (Shell Bell, Life Orb, Rocky Helmet).
+            if (attacker == _player && !_player.IsFainted)
+            {
+                _player.Inventory.OnDealtDamage(Context, target, damage, move);
+            }
+            if (target == _player && !PlayerFainted && move.Range == MoveRange.Melee && !attacker.IsFainted)
+            {
+                _player.Inventory.OnHolderHitByMelee(Context, attacker);
+            }
+
             if (isStruggle && !attacker.IsFainted)
             {
-                int recoil = Math.Max(1, result.Damage / 4);
+                int recoil = Math.Max(1, damage / 4);
                 attacker.TakeDamage(recoil);
                 _log.Add($"{attacker.DisplayName} is hit with recoil!");
                 if (attacker.IsFainted) HandleFaint(attacker, attacker);
             }
+        }
+
+        /// <summary>
+        /// Flat, formula-free damage from items (Blast Seed, Rocky Helmet).
+        /// Handles faints like any other hit.
+        /// </summary>
+        public void ApplyDirectDamage(Actor source, Actor target, int damage)
+        {
+            if (target.IsFainted) return;
+
+            if (target == _player) damage = _player.Inventory.ModifyLethalDamage(damage, _player.CurrentHP, Context);
+            target.TakeDamage(damage);
+            target.FlashHit();
+            if (target.IsFainted) HandleFaint(source, target);
+        }
+
+        /// <summary>Report a faint caused outside ExecuteAttack (e.g. Life Orb recoil).</summary>
+        public void NotifyFaint(Actor attacker, Actor victim)
+        {
+            if (victim.IsFainted) HandleFaint(attacker, victim);
         }
 
         /// <summary>
@@ -118,7 +165,7 @@ namespace PMDRoguelike.Combat
         /// End-of-turn status upkeep for every actor: damage-over-time, duration
         /// countdown, and expiry. Status damage can faint (player included).
         /// </summary>
-        public void TickStatuses(Player player)
+        public void TickStatuses()
         {
             foreach (Actor actor in _map.Actors.ToArray())
             {
@@ -130,13 +177,13 @@ namespace PMDRoguelike.Combat
                 {
                     actor.TakeDamage(damage);
                     actor.FlashHit();
-                    if (actor == player || IsNearPlayer(actor, player))
+                    if (actor == _player || IsNearPlayer(actor, _player))
                         _log.Add($"{actor.DisplayName} is hurt by its {(type == StatusType.Burn ? "burn" : "poison")}!");
 
                     if (actor.IsFainted)
                     {
                         // Status kills credit the player: they're the only opponent.
-                        HandleFaint(player, actor);
+                        HandleFaint(_player, actor);
                         continue;
                     }
                 }
@@ -145,7 +192,7 @@ namespace PMDRoguelike.Combat
                 if (actor.Status.TurnsRemaining <= 0)
                 {
                     actor.CureStatus();
-                    if (actor == player || IsNearPlayer(actor, player))
+                    if (actor == _player || IsNearPlayer(actor, _player))
                         _log.Add(StatusRules.WearOffMessage(actor, type));
                 }
             }
@@ -173,6 +220,15 @@ namespace PMDRoguelike.Combat
                 int exp = Math.Max(1, enemy.Species.ExpYield * enemy.Level / 7);
                 _log.Add($"Gained {exp} EXP!");
                 player.AddExp(exp, _log);
+
+                // Low-rate item drop where the enemy fell.
+                float dropChance = GameConstants.Instance.Data.WorldGeneration.Spawning.ItemSpawnRate;
+                if (_map.GroundItemAt(victim.GridPosition) == null && _rng.Chance(dropChance))
+                {
+                    Item drop = ItemRegistry.Roll(_rng);
+                    _map.GroundItems.Add(new GroundItem(victim.GridPosition, drop));
+                    _log.Add($"The fallen {enemy.DisplayName} dropped a {drop.Name}!");
+                }
             }
         }
     }

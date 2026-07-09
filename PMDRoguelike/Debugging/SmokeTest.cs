@@ -47,6 +47,7 @@ namespace PMDRoguelike.Debugging
             ok &= SimulateFullRun(seed);
             ok &= CombatGoldenTests();
             ok &= StatusGoldenTests();
+            ok &= ItemGoldenTests();
 
             Console.WriteLine(ok ? "SMOKE TEST PASSED" : "SMOKE TEST FAILED");
             return ok ? 0 : 1;
@@ -165,6 +166,109 @@ namespace PMDRoguelike.Debugging
         }
 
         // ------------------------------------------------------------------
+        // RoR item system tests (Phase 5)
+        // ------------------------------------------------------------------
+
+        private static bool ItemGoldenTests()
+        {
+            bool ok = true;
+
+            // Small arena with stairs for the pickup/active walkthrough.
+            var map = new DungeonMap(9, 9);
+            for (int x = 1; x < 8; x++)
+                for (int y = 1; y < 8; y++)
+                    map.SetTile(new Point(x, y), TileType.Floor);
+            map.StairsPosition = new Point(7, 7);
+            map.SetTile(map.StairsPosition, TileType.Stairs);
+
+            var rng = new Rng(77);
+            var log = new MessageLog();
+            var player = new Player(new Point(2, 2), GameData.GetSpecies("charmander"), 50);
+            map.Actors.Add(player);
+            var controller = new TurnController(map, player, rng, log);
+            Items.ItemContext ctx = controller.ItemContext;
+            Items.Inventory inv = player.Inventory;
+
+            // --- Oran Berry: +10 max HP per stack, current HP rises with it.
+            int baseMax = player.Stats.HP;
+            for (int i = 0; i < 3; i++) inv.AddItem(Items.ItemRegistry.Get("oran-berry"), log);
+            ok &= Expect(player.Stats.HP == baseMax + 30, $"3x Oran Berry: expected {baseMax + 30} max HP, got {player.Stats.HP}");
+            ok &= Expect(player.CurrentHP == player.Stats.HP, "Oran Berry max-HP gain should heal by the increase");
+
+            // --- Leftovers: 5 stacks heal 5% of max HP per turn.
+            for (int i = 0; i < 5; i++) inv.AddItem(Items.ItemRegistry.Get("leftovers"), log);
+            player.TakeDamage(50);
+            int expectedHeal = Items.Leftovers.HealAmount(player.Stats.HP, 5);
+            ok &= Expect(expectedHeal == (int)(player.Stats.HP * 0.05f),
+                $"5x Leftovers heal should be 5% of max HP ({(int)(player.Stats.HP * 0.05f)}), got {expectedHeal}");
+            int hpBeforeTurn = player.CurrentHP;
+            controller.ExecuteTurn(new WaitAction());
+            // Walking regen may add 1 on multiples of 4; turn 1 isn't one.
+            ok &= Expect(player.CurrentHP == hpBeforeTurn + expectedHeal,
+                $"Leftovers should heal {expectedHeal} on turn end, got {player.CurrentHP - hpBeforeTurn}");
+
+            // --- Scope Lens: +5%/stack hard-capped at +50%.
+            for (int i = 0; i < 20; i++) inv.AddItem(Items.ItemRegistry.Get("scope-lens"), log);
+            ok &= Expect(Math.Abs(inv.CritChanceBonus() - Items.ScopeLens.HardCap) < 0.001f,
+                $"20x Scope Lens should cap at +{Items.ScopeLens.HardCap:P0}, got {inv.CritChanceBonus():P1}");
+
+            // --- Silk Scarf: +15%/stack on Normal moves only.
+            inv.AddItem(Items.ItemRegistry.Get("silk-scarf"), log);
+            inv.AddItem(Items.ItemRegistry.Get("silk-scarf"), log);
+            int boosted = inv.ModifyOutgoingDamage(100, GameData.GetMove("tackle"));
+            int unboosted = inv.ModifyOutgoingDamage(100, GameData.GetMove("ember"));
+            ok &= Expect(boosted == 130, $"2x Silk Scarf on Normal 100 dmg should be 130, got {boosted}");
+            ok &= Expect(unboosted == 100, $"Silk Scarf must not boost non-Normal moves, got {unboosted}");
+
+            // --- Focus Sash: lethal hit leaves 1 HP, once per floor, resets on floor start.
+            inv.AddItem(Items.ItemRegistry.Get("focus-sash"), log);
+            int lethal = inv.ModifyLethalDamage(9999, player.CurrentHP, ctx);
+            ok &= Expect(lethal == player.CurrentHP - 1, "Focus Sash should reduce lethal damage to HP-1");
+            int secondLethal = inv.ModifyLethalDamage(9999, player.CurrentHP, ctx);
+            ok &= Expect(secondLethal == 9999, "second lethal hit on the same floor should not be blocked");
+            inv.OnFloorStart(ctx);
+            ok &= Expect(inv.ModifyLethalDamage(9999, player.CurrentHP, ctx) == player.CurrentHP - 1,
+                "Focus Sash charge should reset on floor start");
+
+            // --- Choice Band: locks first move; other slots rejected; floor start unlocks.
+            inv.AddItem(Items.ItemRegistry.Get("choice-band"), log);
+            player.Facing = Direction.East; // empty tile — attacking air still locks
+            ok &= Expect(controller.ExecuteTurn(new AttackAction(0)), "attack should execute with Choice Band");
+            ok &= Expect(inv.LockedMoveId == player.Moves[0].Move.Id, "Choice Band should lock the first move used");
+            ok &= Expect(!controller.ExecuteTurn(new AttackAction(1)), "Choice Band should reject other moves");
+            ok &= Expect(log.Messages.Any(m => m.Contains("only allows")), "lock rejection should be logged");
+            inv.OnFloorStart(ctx);
+            ok &= Expect(inv.LockedMoveId == null, "Choice Band lock should clear on floor start");
+
+            // --- Rocky Helmet: melee attacker takes flat reflect damage.
+            inv.AddItem(Items.ItemRegistry.Get("rocky-helmet"), log);
+            var biter = new Enemy(new Point(2, 3), GameData.GetSpecies("rattata"), 5);
+            map.Actors.Add(biter);
+            biter.Facing = Direction.North;
+            var resolver = new CombatResolver(map, log, rng, player);
+            int biterHP = biter.CurrentHP;
+            resolver.ExecuteAttack(biter, biter.Moves[0]); // tackle (melee)
+            ok &= Expect(biter.CurrentHP <= biterHP - Items.RockyHelmet.DamagePerStack,
+                $"Rocky Helmet should reflect {Items.RockyHelmet.DamagePerStack} damage, biter went {biterHP} -> {biter.CurrentHP}");
+            map.Actors.Remove(biter);
+
+            // --- Ground pickup + Lum Berry active through the real turn loop.
+            var pickupSpot = new Point(player.GridPosition.X, player.GridPosition.Y + 1);
+            map.GroundItems.Add(new Items.GroundItem(pickupSpot, Items.ItemRegistry.Get("lum-berry")));
+            ok &= Expect(controller.ExecuteTurn(new MoveAction(Direction.South)), "move onto item tile should execute");
+            ok &= Expect(inv.Actives.Count == 1 && inv.Actives[0].Id == "lum-berry", "walk-over should pick up the Lum Berry");
+            ok &= Expect(map.GroundItemAt(pickupSpot) == null, "picked-up item should leave the floor");
+
+            player.ApplyStatus(StatusType.Poison, 5);
+            ok &= Expect(controller.ExecuteTurn(new UseItemAction(0)), "using the Lum Berry should consume a turn");
+            ok &= Expect(player.StatusType == StatusType.None, "Lum Berry should cure the status");
+            ok &= Expect(inv.Actives.Count == 0, "active item should be consumed");
+
+            if (ok) Console.WriteLine("Items: stacking math, caps, Sash/Band per-floor state, Rocky Helmet, pickup & actives — OK");
+            return ok;
+        }
+
+        // ------------------------------------------------------------------
         // Status condition tests (Phase 4)
         // ------------------------------------------------------------------
 
@@ -195,15 +299,15 @@ namespace PMDRoguelike.Debugging
             arena.Actors.Add(bystanderPlayer);
             arena.Actors.Add(victim);
 
-            var resolver = new CombatResolver(arena, new MessageLog(), new Rng(7));
+            var resolver = new CombatResolver(arena, new MessageLog(), new Rng(7), bystanderPlayer);
             victim.ApplyStatus(StatusType.Poison, StatusRules.DurationFor(StatusType.Poison));
             int expectedTick = Math.Max(1, victim.Stats.HP / 8);
             int hpBefore = victim.CurrentHP;
-            resolver.TickStatuses(bystanderPlayer);
+            resolver.TickStatuses();
             ok &= Expect(victim.CurrentHP == hpBefore - expectedTick,
                 $"poison tick expected {expectedTick}, got {hpBefore - victim.CurrentHP}");
 
-            for (int i = 0; i < StatusRules.DurationFor(StatusType.Poison); i++) resolver.TickStatuses(bystanderPlayer);
+            for (int i = 0; i < StatusRules.DurationFor(StatusType.Poison); i++) resolver.TickStatuses();
             ok &= Expect(victim.StatusType == StatusType.None, "poison should wear off after its duration");
 
             // Sleep always skips; paralysis skips ~25%.

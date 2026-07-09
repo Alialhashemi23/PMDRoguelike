@@ -34,4 +34,15 @@ namespace PMDRoguelike.Turns
             MoveIndex = moveIndex;
         }
     }
+
+    /// <summary>Trigger the active item in the given slot (Q=0, E=1).</summary>
+    public sealed class UseItemAction : TurnAction
+    {
+        public int SlotIndex { get; }
+
+        public UseItemAction(int slotIndex)
+        {
+            SlotIndex = slotIndex;
+        }
+    }
 }

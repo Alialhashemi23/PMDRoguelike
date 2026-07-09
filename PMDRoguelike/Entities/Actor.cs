@@ -64,11 +64,14 @@ namespace PMDRoguelike.Entities
             foreach (MoveSlot slot in Moves) slot.CurrentPP = slot.Move.PP;
         }
 
-        /// <summary>Recompute stats for the current level; HP rises by the max-HP gain (PMD-style).</summary>
-        protected void RecalculateStats()
+        /// <summary>Level-and-modifier stat derivation; Player layers item effects on top.</summary>
+        protected virtual StatBlock ComputeStats() => StatBlock.AtLevel(Species.BaseStats, Level);
+
+        /// <summary>Re-derive stats (level-up, item pickup); HP rises by any max-HP gain (PMD-style).</summary>
+        public void RefreshStats()
         {
             int previousMax = Stats.HP;
-            Stats = StatBlock.AtLevel(Species.BaseStats, Level);
+            Stats = ComputeStats();
             CurrentHP = Math.Min(Stats.HP, CurrentHP + Math.Max(0, Stats.HP - previousMax));
         }
     }

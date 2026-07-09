@@ -23,7 +23,8 @@ namespace PMDRoguelike.Combat
         private const float CritMultiplier = 1.5f;
         private const float StabMultiplier = 1.5f;
 
-        public static DamageResult Calculate(Actor attacker, Actor defender, MoveDefinition move, Rng rng)
+        public static DamageResult Calculate(Actor attacker, Actor defender, MoveDefinition move, Rng rng,
+            float critChanceBonus = 0f)
         {
             if (move.Accuracy < 100 && rng.Next(100) >= move.Accuracy)
                 return new DamageResult { Missed = true };
@@ -35,7 +36,7 @@ namespace PMDRoguelike.Combat
             int attackStat = move.Category == MoveCategory.Physical ? attacker.Stats.Attack : attacker.Stats.SpAttack;
             int defenseStat = move.Category == MoveCategory.Physical ? defender.Stats.Defense : defender.Stats.SpDefense;
 
-            bool crit = rng.NextFloat() < CritChance;
+            bool crit = rng.NextFloat() < CritChance + critChanceBonus;
             float stab = attacker.Species.HasType(move.Type) ? StabMultiplier : 1f;
             float roll = 0.85f + rng.NextFloat() * 0.15f;
             // Burn halves physical damage output (mainline rule).

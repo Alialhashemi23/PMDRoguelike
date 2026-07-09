@@ -79,8 +79,30 @@ namespace PMDRoguelike.States
                 _map.Actors.Add(new Enemy(spawn, species, ScaledEnemyLevel(dungeon)));
             }
 
+            SpawnFloorItems(floor);
+
             _turns = new TurnController(_map, _player, Game.Rng, _log);
             _camera = new Camera();
+
+            // Per-floor item state resets (Choice Band unlock, Focus Sash charges).
+            _player.Inventory.OnFloorStart(_turns.ItemContext);
+        }
+
+        /// <summary>Scatter 1-2 free items on the floor (chests/shops arrive in Phase 6).</summary>
+        private void SpawnFloorItems(GeneratedFloor floor)
+        {
+            int count = Game.Rng.Next(1, 3);
+            int attempts = count * 20;
+            while (count > 0 && attempts-- > 0)
+            {
+                Microsoft.Xna.Framework.Rectangle room = _map.Rooms[Game.Rng.Next(_map.Rooms.Count)];
+                var p = new Point(Game.Rng.Next(room.Left, room.Right), Game.Rng.Next(room.Top, room.Bottom));
+                if (p == floor.PlayerSpawn || p == _map.StairsPosition) continue;
+                if (_map.IsOccupied(p) || _map.GroundItemAt(p) != null) continue;
+
+                _map.GroundItems.Add(new Items.GroundItem(p, Items.ItemRegistry.Roll(Game.Rng)));
+                count--;
+            }
         }
 
         /// <summary>
@@ -191,6 +213,10 @@ namespace PMDRoguelike.States
             if (KeyboardManager.Instance.IsKeyDown(Keys.LeftShift) || KeyboardManager.Instance.IsKeyDown(Keys.RightShift))
             {
                 MovePanel.Draw(spriteBatch, font, pixel, _player, viewport.Width);
+            }
+            else if (KeyboardManager.Instance.IsKeyDown(Keys.Tab))
+            {
+                InventoryPanel.Draw(spriteBatch, font, pixel, _player, viewport.Width);
             }
 
             _learnPrompt?.Draw(spriteBatch, font, pixel, viewport.Width, viewport.Height);

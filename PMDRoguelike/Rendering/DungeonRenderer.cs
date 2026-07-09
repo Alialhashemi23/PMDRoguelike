@@ -47,6 +47,18 @@ namespace PMDRoguelike.Rendering
             }
 
             Texture2D pixel = _content.GetTexture("ui.pixel");
+
+            // Ground items: tier-colored pips sitting on tiles.
+            foreach (Items.GroundItem ground in map.GroundItems)
+            {
+                int px = ground.Position.X * tileSize;
+                int py = ground.Position.Y * tileSize;
+                spriteBatch.Draw(pixel, new Rectangle(px + tileSize / 2 - 7, py + tileSize / 2 - 7, 14, 14),
+                    Color.Black * 0.6f);
+                spriteBatch.Draw(pixel, new Rectangle(px + tileSize / 2 - 5, py + tileSize / 2 - 5, 10, 10),
+                    Items.Item.TierColor(ground.Item.Tier));
+            }
+
             foreach (Actor actor in map.Actors)
             {
                 Texture2D texture = _content.GetTexture(actor.SpriteKey);

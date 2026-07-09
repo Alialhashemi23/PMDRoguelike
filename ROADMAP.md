@@ -95,20 +95,20 @@ reach a stubbed victory; a stubbed game-over exists for later.
 
 ---
 
-## Phase 5: The Risk of Rain Item System
+## ✅ Phase 5: The Risk of Rain Item System — DONE
 
 **Goal:** the signature mechanic — infinitely stacking passives and manually triggered actives.
 
-- [ ] Item architecture: `PassiveItem` / `ActiveItem` under the existing `Item` base; **stat-hook pipeline**
+- [x] Item architecture: `PassiveItem` / `ActiveItem` under the existing `Item` base; **stat-hook pipeline**
       (OnFloorStart, OnTurnEnd, OnDealDamage, OnTakeDamage, OnMoveUsed, ModifyStats) so item effects compose;
       stack count multiplies effect with **hard/soft caps** where needed (evasion, crit)
-- [ ] Inventories: passive inventory (unbounded stacks, grouped by item) + limited active/relic slots; inventory UI screen showing stacks and tiers
-- [ ] Ground items: item entities on the floor, walk-over pickup, drop tables (low-rate enemy drops)
-- [ ] Concrete items — at least: Oran Berry, Silk Scarf (Common); Eviolite, Rocky Helmet (Uncommon);
+- [x] Inventories: passive inventory (unbounded stacks, grouped by item) + limited active/relic slots; inventory UI screen showing stacks and tiers
+- [x] Ground items: item entities on the floor, walk-over pickup, drop tables (low-rate enemy drops)
+- [x] Concrete items — at least: Oran Berry, Silk Scarf (Common); Eviolite, Rocky Helmet (Uncommon);
       Choice Band (move-lock until floor transition), Life Orb, Focus Sash (once per floor) (Legendary);
       plus 2–3 more per tier for variety; 2–3 actives (e.g. Escape Rope, Blast Seed, status-cure)
-- [ ] Tier colors in UI (white/green/red/orange) and weighted rarity rolls
-- [ ] Smoke test: stacking math golden tests (5× Leftovers = 5%/turn, caps clamp correctly, Focus Sash resets per floor, Choice Band lock/unlock)
+- [x] Tier colors in UI (white/green/red/orange) and weighted rarity rolls
+- [x] Smoke test: stacking math golden tests (5× Leftovers = 5%/turn, caps clamp correctly, Focus Sash resets per floor, Choice Band lock/unlock)
 
 **Playable check:** stack 4 of the same passive and feel the difference; trigger an active; Choice Band locks you into a move until the stairs.
 

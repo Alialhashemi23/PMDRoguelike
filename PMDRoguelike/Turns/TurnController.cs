@@ -39,13 +39,16 @@ namespace PMDRoguelike.Turns
         /// <summary>True once the player has fainted; the run is over.</summary>
         public bool PlayerDefeated => _combat.PlayerFainted;
 
+        /// <summary>Item-hook context (shared with DungeonState for floor-start resets).</summary>
+        public Items.ItemContext ItemContext => _combat.Context;
+
         public TurnController(DungeonMap map, Player player, Rng rng, MessageLog log)
         {
             _map = map;
             _player = player;
             _rng = rng;
             _log = log;
-            _combat = new CombatResolver(map, log, rng);
+            _combat = new CombatResolver(map, log, rng, player);
         }
 
         /// <summary>Per-frame driver used by the game loop (input + animation).</summary>
@@ -101,6 +104,7 @@ namespace PMDRoguelike.Turns
                         return false;
 
                     _player.BeginMove(target);
+                    TryPickUpItem();
                     break;
                 }
                 case AttackAction attack:
@@ -110,13 +114,29 @@ namespace PMDRoguelike.Turns
                     _combat.ExecuteAttack(_player, slot);
                     break;
                 }
+                case UseItemAction use:
+                {
+                    if (use.SlotIndex >= _player.Inventory.Actives.Count)
+                    {
+                        _log.Add("No item in that slot.");
+                        return false;
+                    }
+                    Items.ActiveItem item = _player.Inventory.Actives[use.SlotIndex];
+                    if (!item.Activate(_combat.Context)) return false;
+                    _player.Inventory.Actives.RemoveAt(use.SlotIndex);
+                    TryPickUpItem(); // Escape Rope may land on a ground item
+                    break;
+                }
                 // WaitAction: nothing to do, the turn simply passes.
             }
 
             if (!PlayerDefeated) ResolveEnemyTurns();
 
             // End-of-turn status upkeep (burn/poison damage, durations).
-            if (!PlayerDefeated) _combat.TickStatuses(_player);
+            if (!PlayerDefeated) _combat.TickStatuses();
+
+            // End-of-turn item hooks (Leftovers, Lum Charm, ...).
+            if (!PlayerDefeated) _player.Inventory.OnTurnEnd(_combat.Context);
 
             TurnCount++;
 
@@ -139,6 +159,27 @@ namespace PMDRoguelike.Turns
                 return new MoveSlot(Data.GameData.Struggle);
             }
 
+            // Choice Band: only the locked move is allowed; if it's dry, Struggle.
+            string locked = _player.Inventory.LockedMoveId;
+            if (locked != null)
+            {
+                MoveSlot lockedSlot = _player.Moves.Find(s => s.Move.Id == locked);
+                if (lockedSlot != null)
+                {
+                    if (!lockedSlot.HasPP)
+                    {
+                        _log.Add($"{lockedSlot.Move.Name} is out of PP...");
+                        return new MoveSlot(Data.GameData.Struggle);
+                    }
+                    if (index < 0 || index >= _player.Moves.Count || _player.Moves[index] != lockedSlot)
+                    {
+                        _log.Add($"The Choice Band only allows {lockedSlot.Move.Name}!");
+                        return null;
+                    }
+                    return lockedSlot;
+                }
+            }
+
             if (index < 0 || index >= _player.Moves.Count) return null;
 
             MoveSlot slot = _player.Moves[index];
@@ -149,6 +190,17 @@ namespace PMDRoguelike.Turns
             }
 
             return slot;
+        }
+
+        /// <summary>Walk-over pickup on the player's current tile.</summary>
+        private void TryPickUpItem()
+        {
+            Items.GroundItem ground = _map.GroundItemAt(_player.GridPosition);
+            if (ground == null) return;
+            if (_player.Inventory.AddItem(ground.Item, _log))
+            {
+                _map.GroundItems.Remove(ground);
+            }
         }
 
         private void ResolveEnemyTurns()
