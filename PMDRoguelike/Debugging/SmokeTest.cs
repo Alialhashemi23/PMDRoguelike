@@ -184,7 +184,15 @@ namespace PMDRoguelike.Debugging
             AudioCues.Clear();
             ok &= Expect(AudioCues.Count == 0 && !AudioCues.TryDequeue(out _), "Clear should empty the bus");
 
-            if (ok) Console.WriteLine("Audio: cue bus caps and drains correctly — OK");
+            // Visual events bus (damage popups/shake) behaves the same way.
+            VisualEvents.Clear();
+            for (int i = 0; i < 500; i++) VisualEvents.PostDamage(Point.Zero, 5, PopupKind.Damage);
+            ok &= Expect(VisualEvents.Count <= 64, $"visual event queue should cap at 64, got {VisualEvents.Count}");
+            ok &= Expect(VisualEvents.TryDequeue(out VisualEvent e) && e.Text == "5", "visual events should dequeue in order");
+            VisualEvents.Clear();
+            ok &= Expect(VisualEvents.Count == 0, "Clear should empty the visual bus");
+
+            if (ok) Console.WriteLine("Audio/visual: cue buses cap and drain correctly — OK");
             return ok;
         }
 

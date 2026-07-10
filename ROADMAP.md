@@ -173,16 +173,16 @@ reach a stubbed victory; a stubbed game-over exists for later.
 
 ---
 
-## Phase 10: Sprites & Visual Polish
+## ✅ Phase 10: Sprites & Visual Polish — DONE
 
 **Goal:** swap placeholders for real art via the sprite-key indirection built in Phase 1.
 
-- [ ] Sprite-sheet loader: directional idle/walk frames per species; animation timing tied to the existing slide tween
-- [ ] Attack/hurt flash frames; faint animation; damage numbers popup
-- [ ] Tile sets: per-dungeon floor/wall textures (autotile-lite: walls pick edge variants); stairs/chest/shop/item sprites
-- [ ] Item & UI icons by tier; portrait in HUD
-- [ ] Juice pass: screen shake on big hits, hit-stop frames, smooth camera zoom on boss intro
-- [ ] Final balance & bug-fix pass across the whole run
+- [x] Sprite-sheet loader: directional idle/walk frames per species; animation timing tied to the existing slide tween
+- [x] Attack/hurt flash frames; faint animation; damage numbers popup
+- [x] Tile sets: per-dungeon floor/wall textures (autotile-lite: walls pick edge variants); stairs/chest/shop/item sprites
+- [x] Item & UI icons by tier; portrait in HUD
+- [x] Juice pass: screen shake on big hits, hit-stop frames, smooth camera zoom on boss intro
+- [x] Final balance & bug-fix pass across the whole run
 
 **Playable check:** it looks like a PMD-like. Ship the MVP tag. 🎉
 

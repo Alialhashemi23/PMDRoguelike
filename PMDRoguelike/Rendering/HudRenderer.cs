@@ -12,11 +12,13 @@ namespace PMDRoguelike.Rendering
     /// </summary>
     public class HudRenderer
     {
+        private readonly GameContentManager _content;
         private readonly SpriteFont _font;
         private readonly Texture2D _pixel;
 
         public HudRenderer(GameContentManager content)
         {
+            _content = content;
             _font = content.LoadFont("Default");
             content.RegisterSolid("ui.pixel", Color.White);
             _pixel = content.GetTexture("ui.pixel");
@@ -90,10 +92,16 @@ namespace PMDRoguelike.Rendering
 
         private void DrawPlayerVitals(SpriteBatch spriteBatch, Player player)
         {
-            TextRenderer.DrawShadowed(spriteBatch, _font,
-                $"Lv.{player.Level} {player.DisplayName}", new Vector2(12, 40), Color.White, 0.8f);
+            // Portrait: the player's down-facing sprite frame.
+            Texture2D sheet = _content.GetTexture(player.SpriteKey);
+            spriteBatch.Draw(_pixel, new Rectangle(11, 39, 42, 42), Color.Black * 0.55f);
+            spriteBatch.Draw(sheet, new Rectangle(12, 40, 40, 40),
+                new Rectangle(0, 0, SpriteSheets.FrameSize, SpriteSheets.FrameSize), Color.White);
 
-            const int barX = 12, barY = 68, barWidth = 180, barHeight = 12;
+            TextRenderer.DrawShadowed(spriteBatch, _font,
+                $"Lv.{player.Level} {player.DisplayName}", new Vector2(60, 40), Color.White, 0.8f);
+
+            const int barX = 60, barY = 68, barWidth = 180, barHeight = 12;
             float pct = player.Stats.HP > 0 ? (float)player.CurrentHP / player.Stats.HP : 0f;
             Color fill = pct > 0.5f ? new Color(96, 200, 96)
                 : pct > 0.25f ? new Color(230, 200, 80)

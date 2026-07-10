@@ -65,8 +65,7 @@ namespace PMDRoguelike.States
             for (int i = 0; i < StarterIds.Length; i++)
             {
                 SpeciesDefinition species = GameData.GetSpecies(StarterIds[i]);
-                Game.GameContent.RegisterSolid($"species.{species.Id}", ColorUtil.FromHex(species.Color));
-                Texture2D swatch = Game.GameContent.GetTexture($"species.{species.Id}");
+                Texture2D sheet = Game.GameContent.GetTexture($"Species/{species.Id}");
                 Texture2D pixel = Game.GameContent.GetTexture("ui.pixel");
 
                 int x = x0 + i * (cell + 30);
@@ -74,7 +73,9 @@ namespace PMDRoguelike.States
                 {
                     spriteBatch.Draw(pixel, new Rectangle(x - 6, y0 - 6, cell + 12, cell + 12), Color.White);
                 }
-                spriteBatch.Draw(swatch, new Rectangle(x, y0, cell, cell), Color.White);
+                spriteBatch.Draw(pixel, new Rectangle(x, y0, cell, cell), new Color(24, 28, 40));
+                spriteBatch.Draw(sheet, new Rectangle(x, y0, cell, cell),
+                    new Rectangle(0, 0, 32, 32), Color.White);
 
                 if (font != null)
                 {

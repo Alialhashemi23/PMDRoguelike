@@ -38,6 +38,9 @@ namespace PMDRoguelike.Entities
 
         public bool IsAnimating => _sliding || _lunging;
 
+        /// <summary>True while sliding between tiles (drives walk-cycle frames).</summary>
+        public bool IsMoving => _sliding;
+
         /// <summary>Logical texture key resolved by the renderer.</summary>
         public string SpriteKey { get; protected set; } = "entity.unknown";
 

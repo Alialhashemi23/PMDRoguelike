@@ -1,77 +1,70 @@
-# Pokémon Mystery Dungeon Clone
+# Project PMD-Rogue
 
-A roguelike dungeon crawler inspired by the Pokémon Mystery Dungeon series, built with C# and MonoGame, featuring procedurally generated dungeons and AI-generated assets.
+A 2D top-down, turn-based roguelike inspired by **Pokémon Mystery Dungeon**, with a
+**Risk of Rain**-style infinitely-stacking item system. Built in C# on MonoGame (DesktopGL).
 
-![Game Banner](https://via.placeholder.com/800x200?text=Pokemon+Mystery+Dungeon+Clone)
+A run: pick a starter → fight through **3 procedurally generated dungeons** (13 floors),
+each capped by a **boss** → victory. Fainting anywhere ends the run — permadeath, no
+meta-progression.
 
-## 🎮 Project Overview
+## Features
 
-This project is a fan-made homage to the Pokémon Mystery Dungeon series with a focus on:
+- **Grid & turn-based**: 8-directional movement (diagonals can't cut corners), PMD-style
+  turn flow — you act, every enemy acts, animations play in parallel
+- **Real Pokémon combat**: mainline damage formula (STAB, full 18-type chart, crits,
+  damage rolls), 4 moves with PP, Struggle fallback, Burn/Poison/Paralysis/Sleep,
+  EXP/levels with move learning — 18 species and 30+ moves, all authored in JSON
+- **The RoR item system**: passives stack flatly and infinitely through a hook pipeline
+  (5× Leftovers = 5% HP/turn), with caps where needed; Choice Band locks your move until
+  the stairs, Focus Sash saves you once per floor; Q/E actives
+- **Economy**: Poké from kills and floor piles, chests, shop rooms with a keeper —
+  prices and item rarity scale with depth
+- **Bosses**: arena floors with hidden stairs; bosses summon minions and enrage
+- **Roguelike dressing**: fog of war, minimap, message log, run stats on death/victory
+- **Placeholder A/V, real pipelines**: every sprite and sound is procedurally generated
+  by scripts in `tools/` — replace any file under `Content/Sprites` or `Content/Audio`
+  with real art/audio of the same name and it just works
 
-- **Roguelike Gameplay**: Procedurally generated dungeons with permadeath mechanics
-- **Turn-based Combat**: Strategic Pokémon battles with type advantages and special moves
-- **AI-Generated Assets**: Custom sprites, environments, and effects created with AI
-- **MonoGame Implementation**: Built on C# using the MonoGame framework
+## Building & Running
 
-## ⚙️ Technical Architecture
+Prereqs: [.NET 8 SDK](https://dotnet.microsoft.com/download). MonoGame's content tools
+restore automatically on first build.
 
-The game is built on a modular architecture with several key systems:
+```bash
+cd PMDRoguelike
+dotnet run
+```
 
-- **Core Engine**: Game loop, input handling, and scene management
-- **Dungeon Generation**: Procedural room generation with difficulty scaling
-- **Entity Component System**: Modular design for all game entities
-- **AI Systems**: Enemy behavior trees and decision-making
-- **Asset Generation**: Pipeline for AI-generated game assets
+Headless smoke test (procgen, combat math, items, economy, a full bot-played run):
 
-## 🚀 Getting Started
+```bash
+dotnet run -- --dump-map [seed]
+```
 
-### Prerequisites
+## Controls
 
-- [.NET 6.0](https://dotnet.microsoft.com/download) or newer
-- [MonoGame 3.8](https://www.monogame.net/downloads/) or newer
-- [Visual Studio 2022](https://visualstudio.microsoft.com/) (recommended) or any C# IDE
+| Key | Action |
+|---|---|
+| Arrows / WASD | Move (8 directions; bump to turn in place for free) |
+| 1–4 | Use a move along your facing |
+| Space | Wait a turn |
+| Q / E | Trigger active items |
+| Enter / Z | Interact: descend stairs, open chests, buy |
+| Shift (hold) | Moves panel |
+| Tab (hold) | Items panel |
+| Esc | Pause (controls, mute `M`, volume `-`/`+`, abandon `X`) |
 
-### Installation
+## Project layout
 
-1. Clone the repository
-   ```
-   git clone https://github.com/yourusername/pokemon-mystery-dungeon-clone.git
-   ```
+- `PMDRoguelike/Content/Data/` — all game data (species, moves, type chart, dungeons)
+- `PMDRoguelike/Combat|Items|Dungeon|Turns|Entities/` — game logic (graphics-free, tested headlessly)
+- `PMDRoguelike/Rendering|UI|States/` — presentation
+- `tools/` — placeholder asset generators (`generate_placeholder_sprites.py`, `generate_placeholder_audio.py`)
+- `ROADMAP.md` — the phased plan this was built from, with everything checked off
 
-2. Open the solution file (`PokemonMD.sln`) in Visual Studio
+## License
 
-3. Restore NuGet packages
-   ```
-   dotnet restore
-   ```
-
-4. Build the solution
-   ```
-   dotnet build
-   ```
-
-5. Run the game
-   ```
-   dotnet run
-   ```
-
-## 🎨 Art & Assets
-
-This project plans to use AI-generated assets to create unique Pokémon sprites, environments, and effects while maintaining the spirit of the original games. Our asset pipeline includes:
-
-- Custom sprite generation for Pokémon variants
-- Procedural dungeon tile sets
-- Dynamic effect generation
-
-## 🤝 Contributing
-
-This is currently a two-person project in early development. We're not accepting external contributions at this time, but feel free to fork the repository and experiment!
-
-## 📜 License
-
-This project is a non-commercial fan game. Pokémon and all related properties are owned by Nintendo, Game Freak, and The Pokémon Company.
-
-This is a fan project created for educational purposes only.
-
-## 📞 Contact
-Coming soon!
+A non-commercial fan game for educational purposes. Pokémon and all related properties
+are owned by Nintendo, Game Freak, and The Pokémon Company. All art and audio in this
+repository are original procedural placeholders. Bundled font: DejaVu Sans (see
+`Content/Fonts/DejaVuSans-LICENSE.txt`).

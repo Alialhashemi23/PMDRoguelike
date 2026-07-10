@@ -46,7 +46,8 @@ namespace PMDRoguelike.Entities
             Level = Math.Max(1, level);
             Stats = StatBlock.AtLevel(species.BaseStats, Level);
             CurrentHP = Stats.HP;
-            SpriteKey = $"species.{species.Id}";
+            // Resolves to Content/Sprites/Species/<id> (a 2x4-frame walk sheet).
+            SpriteKey = $"Species/{species.Id}";
 
             // Know the last four moves reachable at this level.
             foreach (LearnsetEntry entry in species.Learnset.Where(e => e.Level <= Level).TakeLast(MaxMoves))

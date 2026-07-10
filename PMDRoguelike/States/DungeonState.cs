@@ -34,6 +34,8 @@ namespace PMDRoguelike.States
         private MessageLog _log;
         private MoveLearnPrompt _learnPrompt;
         private Boss _boss;
+        private readonly DamagePopups _popups = new();
+        private float _hitStopMs;
 
         public DungeonState(PMDRogueGame game, string starterSpecies = "charmander") : base(game)
         {
@@ -66,9 +68,7 @@ namespace PMDRoguelike.States
             // The player persists across floors (level, HP, PP); only the floor is new.
             if (_player == null)
             {
-                SpeciesDefinition starter = GameData.GetSpecies(_starterSpecies);
-                _player = new Player(floor.PlayerSpawn, starter, StarterLevel);
-                RegisterSpeciesColor(starter);
+                _player = new Player(floor.PlayerSpawn, GameData.GetSpecies(_starterSpecies), StarterLevel);
             }
             else
             {
@@ -79,10 +79,6 @@ namespace PMDRoguelike.States
             if (bossFloor)
             {
                 SpeciesDefinition bossSpecies = GameData.GetSpecies(dungeon.Boss.Species);
-                RegisterSpeciesColor(bossSpecies);
-                // Minions can be summoned mid-fight — make sure their colors exist.
-                foreach (string id in dungeon.EnemySpecies) RegisterSpeciesColor(GameData.GetSpecies(id));
-
                 _boss = new Boss(floor.EnemySpawns[0], bossSpecies, dungeon.Boss.Level, dungeon.Boss.Title,
                     dungeon.EnemySpecies, dungeon.EnemyLevels.Max);
                 _map.Actors.Add(_boss);
@@ -95,10 +91,7 @@ namespace PMDRoguelike.States
                     string speciesId = dungeon.EnemySpecies.Count > 0
                         ? Game.Rng.Pick(dungeon.EnemySpecies)
                         : "rattata";
-                    SpeciesDefinition species = GameData.GetSpecies(speciesId);
-                    RegisterSpeciesColor(species);
-
-                    _map.Actors.Add(new Enemy(spawn, species, ScaledEnemyLevel(dungeon)));
+                    _map.Actors.Add(new Enemy(spawn, GameData.GetSpecies(speciesId), ScaledEnemyLevel(dungeon)));
                 }
 
                 SpawnFloorItems(floor);
@@ -107,6 +100,7 @@ namespace PMDRoguelike.States
 
             _turns = new TurnController(_map, _player, Game.Rng, _log);
             _camera = new Camera();
+            if (bossFloor) _camera.SetZoom(1.3f); // slow zoom-out boss intro
 
             // Per-floor item state resets (Choice Band unlock, Focus Sash charges).
             _player.Inventory.OnFloorStart(_turns.ItemContext);
@@ -144,15 +138,13 @@ namespace PMDRoguelike.States
             return System.Math.Clamp(level, dungeon.EnemyLevels.Min, dungeon.EnemyLevels.Max);
         }
 
-        private void RegisterSpeciesColor(SpeciesDefinition species) =>
-            Game.GameContent.RegisterSolid($"species.{species.Id}", ColorUtil.FromHex(species.Color));
-
-        /// <summary>Placeholder tile colors per dungeon, until real tilesets in the sprite phase.</summary>
+        /// <summary>Bind this dungeon's tileset to the shared tile keys.</summary>
         private void ApplyPalette(DungeonDefinition dungeon)
         {
-            Game.GameContent.RegisterSolid("tile.wall", ColorUtil.FromHex(dungeon.WallColor), overwrite: true);
-            Game.GameContent.RegisterSolid("tile.floor", ColorUtil.FromHex(dungeon.FloorColor), overwrite: true);
-            Game.GameContent.RegisterSolid("tile.stairs", new Color(96, 134, 222), overwrite: true);
+            var content = Game.GameContent;
+            content.RegisterTexture("tile.floor", content.LoadTexture($"Tiles/{dungeon.Id}_floor"));
+            content.RegisterTexture("tile.wall", content.LoadTexture($"Tiles/{dungeon.Id}_wall"));
+            content.RegisterTexture("tile.wall_face", content.LoadTexture($"Tiles/{dungeon.Id}_wall_face"));
         }
 
         public override void Update(GameTime gameTime)
@@ -172,10 +164,23 @@ namespace PMDRoguelike.States
                 return;
             }
 
-            // Debug helper until stairs are the only path: R regenerates the current floor.
-            if (keyboard.WasKeyJustPressed(Keys.R)) BuildFloor();
+            // Debug helper (enable via GameConstants debug.enableCheats): R regenerates the floor.
+            if (GameConstants.Instance.Data.Debug.Settings.EnableCheats && keyboard.WasKeyJustPressed(Keys.R))
+                BuildFloor();
 
-            _turns.Update(gameTime);
+            float deltaMs = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
+            DrainVisualEvents();
+            _popups.Update(deltaMs);
+
+            // Hit-stop: big hits freeze the action for a few frames.
+            if (_hitStopMs > 0f)
+            {
+                _hitStopMs -= deltaMs;
+            }
+            else
+            {
+                _turns.Update(gameTime);
+            }
 
             // Boss down → the way forward materializes.
             if (_boss != null && !_map.StairsRevealed && !_map.Actors.Contains(_boss))
@@ -207,6 +212,20 @@ namespace PMDRoguelike.States
             float halfTile = GameConstants.Instance.TileSize / 2f;
             _camera.Update(_player.RenderPosition + new Vector2(halfTile, halfTile),
                 (float)gameTime.ElapsedGameTime.TotalSeconds);
+        }
+
+        /// <summary>Turn combat's visual events into popups, shake, and hit-stop.</summary>
+        private void DrainVisualEvents()
+        {
+            while (Core.VisualEvents.TryDequeue(out Core.VisualEvent e))
+            {
+                if (e.Text != null) _popups.Spawn(e.Kind, e.Text, e.Tile);
+                if (e.Shake > 0f)
+                {
+                    _camera.AddShake(e.Shake);
+                    if (e.Shake >= 5f) _hitStopMs = 70f;
+                }
+            }
         }
 
         private bool CanInteract() => _turns.Phase == TurnPhase.AwaitingInput && !_player.IsAnimating;
@@ -292,7 +311,8 @@ namespace PMDRoguelike.States
 
             Matrix view = _camera.GetViewMatrix(viewport.Width, viewport.Height);
             spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: view);
-            _renderer.Draw(spriteBatch, _map);
+            _renderer.Draw(spriteBatch, _map, gameTime.TotalGameTime.TotalMilliseconds);
+            _popups.Draw(spriteBatch, font);
             spriteBatch.End();
 
             spriteBatch.Begin(samplerState: SamplerState.PointClamp);
@@ -309,7 +329,7 @@ namespace PMDRoguelike.States
             }
             else if (KeyboardManager.Instance.IsKeyDown(Keys.Tab))
             {
-                InventoryPanel.Draw(spriteBatch, font, pixel, _player, viewport.Width);
+                InventoryPanel.Draw(spriteBatch, font, pixel, Game.GameContent, _player, viewport.Width);
             }
 
             _learnPrompt?.Draw(spriteBatch, font, pixel, viewport.Width, viewport.Height);

@@ -81,6 +81,7 @@ namespace PMDRoguelike.Combat
             {
                 _log.Add($"{attacker.DisplayName}'s attack missed!");
                 AudioCues.Post("miss");
+                VisualEvents.PostMiss(target.GridPosition);
                 return;
             }
 
@@ -88,6 +89,7 @@ namespace PMDRoguelike.Combat
             {
                 _log.Add($"It doesn't affect {target.DisplayName}...");
                 AudioCues.Post("miss");
+                VisualEvents.PostMiss(target.GridPosition);
                 return;
             }
 
@@ -102,6 +104,13 @@ namespace PMDRoguelike.Combat
             target.FlashHit();
             AudioCues.Post(result.Effectiveness >= 2f ? "hit_super"
                 : result.Effectiveness < 1f ? "hit_weak" : "hit_normal");
+
+            // Floating damage number + camera kick on heavy hits.
+            PopupKind popupKind = target == _player ? PopupKind.DamagePlayer
+                : result.IsCritical ? PopupKind.DamageCrit : PopupKind.Damage;
+            float shake = result.Effectiveness >= 2f || result.IsCritical ? 4f : 0f;
+            if (target == _player && damage >= Math.Max(1, _player.Stats.HP / 5)) shake = 6f;
+            VisualEvents.PostDamage(target.GridPosition, damage, popupKind, shake);
 
             if (result.IsCritical) _log.Add("A critical hit!");
             if (result.Effectiveness >= 2f) _log.Add("It's super effective!");
@@ -148,6 +157,8 @@ namespace PMDRoguelike.Combat
             if (target == _player) _player.RunStats.DamageTaken += damage;
             target.TakeDamage(damage);
             target.FlashHit();
+            VisualEvents.PostDamage(target.GridPosition, damage,
+                target == _player ? PopupKind.DamagePlayer : PopupKind.Damage);
             if (target.IsFainted) HandleFaint(source, target);
         }
 
@@ -190,7 +201,11 @@ namespace PMDRoguelike.Combat
                     actor.TakeDamage(damage);
                     actor.FlashHit();
                     if (actor == _player || IsNearPlayer(actor, _player))
+                    {
                         _log.Add($"{actor.DisplayName} is hurt by its {(type == StatusType.Burn ? "burn" : "poison")}!");
+                        VisualEvents.PostDamage(actor.GridPosition, damage,
+                            actor == _player ? PopupKind.DamagePlayer : PopupKind.Damage);
+                    }
 
                     if (actor.IsFainted)
                     {
@@ -219,6 +234,7 @@ namespace PMDRoguelike.Combat
         {
             _log.Add($"{victim.DisplayName} fainted!");
             AudioCues.Post("faint");
+            VisualEvents.Post(new VisualEvent { Text = null, Shake = victim is Boss ? 9f : 5f });
 
             if (victim is Player)
             {

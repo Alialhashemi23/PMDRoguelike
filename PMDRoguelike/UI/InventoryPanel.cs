@@ -2,20 +2,21 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using PMDRoguelike.Entities;
 using PMDRoguelike.Items;
+using PMDRoguelike.Managers;
 using PMDRoguelike.Rendering;
 
 namespace PMDRoguelike.UI
 {
     /// <summary>
-    /// Item overlay shown while Tab is held: passive stacks grouped and colored by
-    /// tier, plus the two active slots.
+    /// Item overlay shown while Tab is held: passive stacks grouped with their tier
+    /// icons and colors, plus the two active slots.
     /// </summary>
     public static class InventoryPanel
     {
         private const float Scale = 0.75f;
 
         public static void Draw(SpriteBatch spriteBatch, SpriteFont font, Texture2D pixel,
-            Player player, int viewportWidth)
+            GameContentManager content, Player player, int viewportWidth)
         {
             if (font == null) return;
 
@@ -39,9 +40,11 @@ namespace PMDRoguelike.UI
             {
                 foreach (PassiveItem item in inventory.Passives)
                 {
+                    Texture2D icon = content.GetTexture($"Icons/{item.Tier.ToString().ToLowerInvariant()}");
+                    spriteBatch.Draw(icon, new Rectangle(box.X + 8, (int)y + 2, 14, 14), Color.White);
                     TextRenderer.DrawShadowed(spriteBatch, font,
                         $"{item.Name} x{inventory.StacksOf(item.Id)}",
-                        new Vector2(box.X + 10, y), Item.TierColor(item.Tier), Scale);
+                        new Vector2(box.X + 28, y), Item.TierColor(item.Tier), Scale);
                     y += lineHeight;
                 }
             }
