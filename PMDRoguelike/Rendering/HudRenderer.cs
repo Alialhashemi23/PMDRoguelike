@@ -42,8 +42,8 @@ namespace PMDRoguelike.Rendering
             TextRenderer.DrawShadowed(spriteBatch, _font, poke,
                 new Vector2(viewportWidth - pokeSize.X - 12, 64), new Color(235, 200, 90), 0.8f);
 
-            TextRenderer.DrawShadowed(spriteBatch, _font, "Shift: moves   Tab: items",
-                new Vector2(viewportWidth - 246, 40), new Color(140, 140, 150), 0.7f);
+            TextRenderer.DrawShadowed(spriteBatch, _font, "Shift: moves  Tab: items  Esc: pause",
+                new Vector2(viewportWidth - 330, 40), new Color(140, 140, 150), 0.7f);
 
             // Active item slots, bottom-right.
             for (int i = 0; i < Items.Inventory.MaxActiveSlots; i++)
@@ -112,8 +112,13 @@ namespace PMDRoguelike.Rendering
                     new Vector2(barX + barWidth + 74, barY - 4), StatusColor(player.StatusType), 0.7f);
             }
 
+            // EXP bar with label.
+            float expPct = MathHelper.Clamp((float)player.Exp / player.ExpToNextLevel, 0f, 1f);
+            spriteBatch.Draw(_pixel, new Rectangle(barX - 1, barY + 15, barWidth + 2, 7), Color.Black * 0.7f);
+            spriteBatch.Draw(_pixel, new Rectangle(barX, barY + 16, barWidth, 5), new Color(52, 52, 60));
+            spriteBatch.Draw(_pixel, new Rectangle(barX, barY + 16, (int)(barWidth * expPct), 5), new Color(140, 120, 220));
             TextRenderer.DrawShadowed(spriteBatch, _font, $"EXP {player.Exp}/{player.ExpToNextLevel}",
-                new Vector2(barX, barY + 16), new Color(170, 170, 180), 0.65f);
+                new Vector2(barX, barY + 24), new Color(170, 170, 180), 0.65f);
         }
 
         /// <summary>Shared placeholder colors for status conditions (HUD + map dots).</summary>

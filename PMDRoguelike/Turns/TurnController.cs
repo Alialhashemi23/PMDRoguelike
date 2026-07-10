@@ -144,6 +144,10 @@ namespace PMDRoguelike.Turns
             if (!PlayerDefeated && TurnCount % RegenIntervalTurns == 0) _player.Heal(1);
 
             Phase = TurnPhase.Animating;
+
+            // The player may have moved (walk, Escape Rope): refresh the fog of war.
+            _map.UpdateVisibility(_player.GridPosition);
+
             return true;
         }
 

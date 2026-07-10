@@ -21,7 +21,7 @@ namespace PMDRoguelike.States
         public override void Update(GameTime gameTime)
         {
             if (KeyboardManager.Instance.WasKeyJustPressed(Keys.Enter))
-                Game.States.ChangeState(new DungeonState(Game));
+                Game.States.ChangeState(new TitleState(Game));
         }
 
         public override void Draw(GameTime gameTime)
@@ -33,7 +33,7 @@ namespace PMDRoguelike.States
             TextRenderer.DrawCentered(spriteBatch, Game, "VICTORY!", -140, new Color(120, 220, 120), 1.6f);
             TextRenderer.DrawCentered(spriteBatch, Game, "All three dungeons cleared. The realm is at peace.", -80, Color.LightGray, 1f);
             RunSummary.Draw(spriteBatch, Game, _player, _totalTurns, startYOffset: -30);
-            TextRenderer.DrawCentered(spriteBatch, Game, "Press Enter to begin a new run", 150, Color.Gray, 1f);
+            TextRenderer.DrawCentered(spriteBatch, Game, "Press Enter to return to the title", 150, Color.Gray, 1f);
             spriteBatch.End();
         }
     }

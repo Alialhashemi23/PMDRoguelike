@@ -47,16 +47,17 @@ namespace PMDRoguelike
         {
             SpriteBatch = new SpriteBatch(GraphicsDevice);
             GameContent = new GameContentManager(Content, GraphicsDevice);
+            GameContent.RegisterSolid("ui.pixel", Color.White);
 
-            States.ChangeState(new DungeonState(this));
+            States.ChangeState(new TitleState(this));
         }
 
         protected override void Update(GameTime gameTime)
         {
             KeyboardManager.Instance.Update();
 
-            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
-                KeyboardManager.Instance.IsKeyDown(Keys.Escape))
+            // Escape is handled per-state (pause in a run, quit from the title).
+            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
                 Exit();
 
             States.Current?.Update(gameTime);

@@ -144,17 +144,17 @@ reach a stubbed victory; a stubbed game-over exists for later.
 
 ---
 
-## Phase 8: Game Shell — Title, Starter Select, Endings, Minimap
+## ✅ Phase 8: Game Shell — Title, Starter Select, Endings, Minimap — DONE
 
 **Goal:** it frames itself like a finished game instead of a debug build.
 
-- [ ] Title screen (new game / quit) wired into the GameState machine
-- [ ] Starter selection screen: pick from 3–4 of the curated species
-- [ ] Game-over & victory screens: run stats (from Phase 7), cause of death, "play again" loop back to title
-- [ ] Fog of war: explored-tiles layer on `DungeonMap`; unexplored = black, explored-but-unseen = dimmed
-- [ ] Minimap: corner overlay showing explored layout, stairs, enemies in sight, chests/shops
-- [ ] Pause/menu screen: resume, controls reference, abandon run
-- [ ] HUD polish: HP bar, EXP bar, status icons, Poké counter, floor label unified
+- [x] Title screen (new game / quit) wired into the GameState machine
+- [x] Starter selection screen: pick from 3–4 of the curated species
+- [x] Game-over & victory screens: run stats (from Phase 7), cause of death, "play again" loop back to title
+- [x] Fog of war: explored-tiles layer on `DungeonMap`; unexplored = black, explored-but-unseen = dimmed
+- [x] Minimap: corner overlay showing explored layout, stairs, enemies in sight, chests/shops
+- [x] Pause/menu screen: resume, controls reference, abandon run
+- [x] HUD polish: HP bar, EXP bar, status icons, Poké counter, floor label unified
 
 **Playable check:** boot → title → pick starter → run → die → stats → play again, all without touching a debug key.
 

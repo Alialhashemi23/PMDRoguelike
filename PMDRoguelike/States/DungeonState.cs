@@ -20,9 +20,9 @@ namespace PMDRoguelike.States
     /// </summary>
     public class DungeonState : GameState
     {
-        // Starter species until the selection screen arrives in Phase 8.
-        private const string StarterSpecies = "charmander";
         private const int StarterLevel = 5;
+
+        private readonly string _starterSpecies;
 
         private RunManager _run;
         private DungeonMap _map;
@@ -35,7 +35,10 @@ namespace PMDRoguelike.States
         private MoveLearnPrompt _learnPrompt;
         private Boss _boss;
 
-        public DungeonState(PMDRogueGame game) : base(game) { }
+        public DungeonState(PMDRogueGame game, string starterSpecies = "charmander") : base(game)
+        {
+            _starterSpecies = starterSpecies;
+        }
 
         public override void Enter()
         {
@@ -62,7 +65,7 @@ namespace PMDRoguelike.States
             // The player persists across floors (level, HP, PP); only the floor is new.
             if (_player == null)
             {
-                SpeciesDefinition starter = GameData.GetSpecies(StarterSpecies);
+                SpeciesDefinition starter = GameData.GetSpecies(_starterSpecies);
                 _player = new Player(floor.PlayerSpawn, starter, StarterLevel);
                 RegisterSpeciesColor(starter);
             }
@@ -106,6 +109,8 @@ namespace PMDRoguelike.States
 
             // Per-floor item state resets (Choice Band unlock, Focus Sash charges).
             _player.Inventory.OnFloorStart(_turns.ItemContext);
+
+            _map.UpdateVisibility(_player.GridPosition);
         }
 
         /// <summary>Scatter 1-2 free items on the floor (chests/shops arrive in Phase 6).</summary>
@@ -157,6 +162,12 @@ namespace PMDRoguelike.States
             if (_learnPrompt != null)
             {
                 if (_learnPrompt.Update(keyboard)) _learnPrompt = null;
+                return;
+            }
+
+            if (keyboard.WasKeyJustPressed(Keys.Escape))
+            {
+                Game.States.Push(new PauseState(Game, _player, _run.TotalTurns + _turns.TurnCount));
                 return;
             }
 
@@ -286,6 +297,8 @@ namespace PMDRoguelike.States
             _hud.Draw(spriteBatch, _run, _player, _turns.TurnCount, CurrentPrompt(), viewport.Width, viewport.Height);
             Boss livingBoss = _boss != null && _map.Actors.Contains(_boss) ? _boss : null;
             if (livingBoss != null) _hud.DrawBossBar(spriteBatch, livingBoss, viewport.Width);
+
+            MinimapRenderer.Draw(spriteBatch, pixel, _map, viewport.Width);
             _log.Draw(spriteBatch, font, pixel, viewport.Width, viewport.Height);
 
             if (KeyboardManager.Instance.IsKeyDown(Keys.LeftShift) || KeyboardManager.Instance.IsKeyDown(Keys.RightShift))

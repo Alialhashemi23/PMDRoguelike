@@ -24,13 +24,29 @@ namespace PMDRoguelike.States
 
     public class GameStateManager
     {
-        public GameState Current { get; private set; }
+        private readonly System.Collections.Generic.Stack<GameState> _stack = new();
 
+        public GameState Current => _stack.Count > 0 ? _stack.Peek() : null;
+
+        /// <summary>Replace the whole stack (screen transitions).</summary>
         public void ChangeState(GameState next)
         {
-            Current?.Exit();
-            Current = next;
-            Current?.Enter();
+            while (_stack.Count > 0) _stack.Pop().Exit();
+            _stack.Push(next);
+            next.Enter();
+        }
+
+        /// <summary>Overlay a state (pause) without disturbing the one beneath.</summary>
+        public void Push(GameState state)
+        {
+            _stack.Push(state);
+            state.Enter();
+        }
+
+        /// <summary>Close the top overlay and resume the state beneath it.</summary>
+        public void Pop()
+        {
+            if (_stack.Count > 0) _stack.Pop().Exit();
         }
     }
 }

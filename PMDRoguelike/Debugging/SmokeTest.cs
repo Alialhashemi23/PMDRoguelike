@@ -49,6 +49,7 @@ namespace PMDRoguelike.Debugging
             ok &= StatusGoldenTests();
             ok &= ItemGoldenTests();
             ok &= EconomyGoldenTests(seed);
+            ok &= FogOfWarGoldenTests();
 
             Console.WriteLine(ok ? "SMOKE TEST PASSED" : "SMOKE TEST FAILED");
             return ok ? 0 : 1;
@@ -163,6 +164,53 @@ namespace PMDRoguelike.Debugging
             ok &= Expect(player.CurrentHP <= hpBefore, "Struggle recoil should not heal the attacker");
 
             if (ok) Console.WriteLine("Combat: scripted battle (PP, faint, EXP, level-up, Struggle) — OK");
+            return ok;
+        }
+
+        // ------------------------------------------------------------------
+        // Fog of war tests (Phase 8)
+        // ------------------------------------------------------------------
+
+        private static bool FogOfWarGoldenTests()
+        {
+            bool ok = true;
+
+            // Two rooms joined by a corridor: (2,2)-(7,7) and (14,2)-(19,7), corridor at y=4.
+            var map = new DungeonMap(22, 10);
+            var westRoom = new Rectangle(2, 2, 6, 6);
+            var eastRoom = new Rectangle(14, 2, 6, 6);
+            for (int x = westRoom.Left; x < westRoom.Right; x++)
+                for (int y = westRoom.Top; y < westRoom.Bottom; y++)
+                    map.SetTile(new Point(x, y), TileType.Floor);
+            for (int x = eastRoom.Left; x < eastRoom.Right; x++)
+                for (int y = eastRoom.Top; y < eastRoom.Bottom; y++)
+                    map.SetTile(new Point(x, y), TileType.Floor);
+            for (int x = westRoom.Right; x < eastRoom.Left; x++)
+                map.SetTile(new Point(x, 4), TileType.Floor);
+            map.Rooms.Add(westRoom);
+            map.Rooms.Add(eastRoom);
+
+            // Untouched map: nothing seen yet.
+            ok &= Expect(!map.IsExplored(new Point(3, 3)), "fresh map should be unexplored");
+
+            // Standing in the west room reveals all of it, none of the east room.
+            map.UpdateVisibility(new Point(3, 3));
+            ok &= Expect(map.IsVisible(new Point(7, 7)), "whole current room should be visible");
+            ok &= Expect(map.IsExplored(new Point(7, 7)), "seen tiles should be explored");
+            ok &= Expect(!map.IsExplored(new Point(15, 3)), "the far room should stay dark");
+
+            // Out in the corridor: only a small radius; the old room dims (explored, not visible).
+            map.UpdateVisibility(new Point(11, 4));
+            ok &= Expect(map.IsVisible(new Point(12, 4)), "corridor radius should be visible");
+            ok &= Expect(!map.IsVisible(new Point(3, 3)), "left-behind room should no longer be visible");
+            ok &= Expect(map.IsExplored(new Point(3, 3)), "left-behind room should remain explored");
+            ok &= Expect(!map.IsExplored(new Point(17, 6)), "deep east room should still be dark from the corridor");
+
+            // Entering the east room lights it up.
+            map.UpdateVisibility(new Point(15, 4));
+            ok &= Expect(map.IsVisible(new Point(19, 7)), "east room should reveal fully on entry");
+
+            if (ok) Console.WriteLine("Fog of war: room reveal, corridor radius, explored-vs-visible — OK");
             return ok;
         }
 

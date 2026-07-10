@@ -12,6 +12,8 @@ namespace PMDRoguelike.Dungeon
     public class DungeonMap
     {
         private readonly Tile[,] _tiles;
+        private readonly bool[,] _explored;
+        private readonly bool[,] _visible;
 
         public int Width { get; }
         public int Height { get; }
@@ -93,9 +95,50 @@ namespace PMDRoguelike.Dungeon
             Width = width;
             Height = height;
             _tiles = new Tile[width, height];
+            _explored = new bool[width, height];
+            _visible = new bool[width, height];
             for (int x = 0; x < width; x++)
                 for (int y = 0; y < height; y++)
                     _tiles[x, y] = new Tile(TileType.Wall);
+        }
+
+        // --- Fog of war -------------------------------------------------------
+
+        /// <summary>Ever seen (drawn dimmed when out of sight).</summary>
+        public bool IsExplored(Point p) => InBounds(p) && _explored[p.X, p.Y];
+
+        /// <summary>Currently in view (actors are only drawn here).</summary>
+        public bool IsVisible(Point p) => InBounds(p) && _visible[p.X, p.Y];
+
+        /// <summary>
+        /// Recompute what the viewer sees, PMD-style: the whole room they stand in
+        /// (plus its walls), or a small radius while in a corridor. Seen tiles stay
+        /// explored forever.
+        /// </summary>
+        public void UpdateVisibility(Point viewer)
+        {
+            System.Array.Clear(_visible, 0, _visible.Length);
+
+            MarkSeen(new Rectangle(viewer.X - 2, viewer.Y - 2, 5, 5));
+
+            Rectangle? room = RoomContaining(viewer);
+            if (room.HasValue)
+            {
+                Rectangle r = room.Value;
+                MarkSeen(new Rectangle(r.X - 1, r.Y - 1, r.Width + 2, r.Height + 2));
+            }
+        }
+
+        private void MarkSeen(Rectangle area)
+        {
+            for (int x = System.Math.Max(0, area.Left); x < System.Math.Min(Width, area.Right); x++)
+            {
+                for (int y = System.Math.Max(0, area.Top); y < System.Math.Min(Height, area.Bottom); y++)
+                {
+                    _visible[x, y] = true;
+                    _explored[x, y] = true;
+                }
+            }
         }
 
         public bool InBounds(Point p) => p.X >= 0 && p.Y >= 0 && p.X < Width && p.Y < Height;

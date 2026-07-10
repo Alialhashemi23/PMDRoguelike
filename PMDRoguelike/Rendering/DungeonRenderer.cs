@@ -8,13 +8,17 @@ using PMDRoguelike.Managers;
 namespace PMDRoguelike.Rendering
 {
     /// <summary>
-    /// Draws the dungeon and its entities. Everything is looked up by logical
+    /// Draws the dungeon and its entities under the fog of war: unexplored tiles are
+    /// not drawn at all, explored-but-unseen tiles and features are dimmed, and
+    /// actors only appear while actually visible. Everything is looked up by logical
     /// sprite key through GameContentManager, currently resolving to tinted
     /// placeholder squares — swapping in real PMD-style sprite sheets later only
     /// requires changing what those keys resolve to.
     /// </summary>
     public class DungeonRenderer
     {
+        private const float DimFactor = 0.45f;
+
         private readonly GameContentManager _content;
 
         public DungeonRenderer(GameContentManager content)
@@ -35,53 +39,67 @@ namespace PMDRoguelike.Rendering
         public void Draw(SpriteBatch spriteBatch, DungeonMap map)
         {
             int tileSize = GameConstants.Instance.TileSize;
+            Texture2D pixel = _content.GetTexture("ui.pixel");
 
             for (int x = 0; x < map.Width; x++)
             {
                 for (int y = 0; y < map.Height; y++)
                 {
-                    Tile tile = map.GetTile(new Point(x, y));
+                    var p = new Point(x, y);
+                    if (!map.IsExplored(p)) continue;
+
+                    Tile tile = map.GetTile(p);
                     Texture2D texture = _content.GetTexture(tile.SpriteKey);
                     var destination = new Rectangle(x * tileSize, y * tileSize, tileSize, tileSize);
-                    spriteBatch.Draw(texture, destination, Color.White);
+                    spriteBatch.Draw(texture, destination, Color.White * Brightness(map, p));
                 }
             }
-
-            Texture2D pixel = _content.GetTexture("ui.pixel");
 
             // Ground items: tier-colored pips sitting on tiles.
             foreach (Items.GroundItem ground in map.GroundItems)
             {
-                DrawPip(spriteBatch, pixel, ground.Position, tileSize, Items.Item.TierColor(ground.Item.Tier), 10);
+                if (!map.IsExplored(ground.Position)) continue;
+                DrawPip(spriteBatch, pixel, ground.Position, tileSize,
+                    Items.Item.TierColor(ground.Item.Tier) * Brightness(map, ground.Position), 10);
             }
 
             // Money piles: small gold pips.
             foreach (Items.MoneyPile pile in map.MoneyPiles)
             {
-                DrawPip(spriteBatch, pixel, pile.Position, tileSize, new Color(235, 200, 90), 8);
+                if (!map.IsExplored(pile.Position)) continue;
+                DrawPip(spriteBatch, pixel, pile.Position, tileSize,
+                    new Color(235, 200, 90) * Brightness(map, pile.Position), 8);
             }
 
             // Chests: brown boxes with a gold clasp.
             foreach (Items.Chest chest in map.Chests)
             {
+                if (!map.IsExplored(chest.Position)) continue;
+                float b = Brightness(map, chest.Position);
                 int px = chest.Position.X * tileSize;
                 int py = chest.Position.Y * tileSize;
-                spriteBatch.Draw(pixel, new Rectangle(px + 6, py + 8, tileSize - 12, tileSize - 14), new Color(50, 34, 20));
-                spriteBatch.Draw(pixel, new Rectangle(px + 8, py + 10, tileSize - 16, tileSize - 18), new Color(122, 82, 44));
-                spriteBatch.Draw(pixel, new Rectangle(px + tileSize / 2 - 2, py + 12, 4, 8), new Color(235, 200, 90));
+                spriteBatch.Draw(pixel, new Rectangle(px + 6, py + 8, tileSize - 12, tileSize - 14), new Color(50, 34, 20) * b);
+                spriteBatch.Draw(pixel, new Rectangle(px + 8, py + 10, tileSize - 16, tileSize - 18), new Color(122, 82, 44) * b);
+                spriteBatch.Draw(pixel, new Rectangle(px + tileSize / 2 - 2, py + 12, 4, 8), new Color(235, 200, 90) * b);
             }
 
             // Shop stock: tier pips with a white "for sale" ring.
             foreach (Items.ShopItem shopItem in map.ShopItems)
             {
+                if (!map.IsExplored(shopItem.Position)) continue;
+                float b = Brightness(map, shopItem.Position);
                 int px = shopItem.Position.X * tileSize;
                 int py = shopItem.Position.Y * tileSize;
-                spriteBatch.Draw(pixel, new Rectangle(px + tileSize / 2 - 9, py + tileSize / 2 - 9, 18, 18), Color.White);
-                DrawPip(spriteBatch, pixel, shopItem.Position, tileSize, Items.Item.TierColor(shopItem.Item.Tier), 12);
+                spriteBatch.Draw(pixel, new Rectangle(px + tileSize / 2 - 9, py + tileSize / 2 - 9, 18, 18), Color.White * b);
+                DrawPip(spriteBatch, pixel, shopItem.Position, tileSize,
+                    Items.Item.TierColor(shopItem.Item.Tier) * b, 12);
             }
 
+            // Actors only exist while in sight.
             foreach (Actor actor in map.Actors)
             {
+                if (!map.IsVisible(actor.GridPosition)) continue;
+
                 Texture2D texture = _content.GetTexture(actor.SpriteKey);
                 Vector2 drawPos = actor.RenderPosition + actor.VisualOffset;
 
@@ -119,6 +137,8 @@ namespace PMDRoguelike.Rendering
                 }
             }
         }
+
+        private static float Brightness(DungeonMap map, Point p) => map.IsVisible(p) ? 1f : DimFactor;
 
         private static void DrawPip(SpriteBatch spriteBatch, Texture2D pixel, Point tile, int tileSize,
             Color color, int size)
