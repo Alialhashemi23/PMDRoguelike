@@ -32,15 +32,22 @@ namespace PMDRoguelike.States
             _totalTurns = totalTurns;
         }
 
+        public override void Enter() => Core.AudioCues.Post("menu");
+
         public override void Update(GameTime gameTime)
         {
             KeyboardManager keyboard = KeyboardManager.Instance;
 
             if (keyboard.WasKeyJustPressed(Keys.Escape) || keyboard.WasKeyJustPressed(Keys.Enter))
             {
+                Core.AudioCues.Post("menu");
                 Game.States.Pop();
                 return;
             }
+
+            if (keyboard.WasKeyJustPressed(Keys.M)) Game.Audio?.ToggleMute();
+            if (keyboard.WasKeyJustPressed(Keys.OemMinus)) Game.Audio?.AdjustMasterVolume(-0.1f);
+            if (keyboard.WasKeyJustPressed(Keys.OemPlus)) Game.Audio?.AdjustMasterVolume(0.1f);
 
             if (keyboard.WasKeyJustPressed(Keys.X))
             {
@@ -64,7 +71,10 @@ namespace PMDRoguelike.States
                 y += 34;
             }
 
-            TextRenderer.DrawCentered(spriteBatch, Game, "Esc / Enter — resume        X — abandon run", y + 40,
+            string mute = Game.Audio?.Muted == true ? "muted" : $"{(int)((Game.Audio?.MasterVolume ?? 0f) * 100)}%";
+            TextRenderer.DrawCentered(spriteBatch, Game, $"M — mute    - / + — volume ({mute})", y + 10,
+                new Color(150, 160, 180), 0.85f);
+            TextRenderer.DrawCentered(spriteBatch, Game, "Esc / Enter — resume        X — abandon run", y + 50,
                 Color.Gray, 0.9f);
 
             spriteBatch.End();

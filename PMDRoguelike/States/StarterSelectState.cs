@@ -25,12 +25,21 @@ namespace PMDRoguelike.States
             KeyboardManager keyboard = KeyboardManager.Instance;
 
             if (keyboard.WasKeyJustPressed(Keys.Left) || keyboard.WasKeyJustPressed(Keys.A))
+            {
                 _selected = (_selected + StarterIds.Length - 1) % StarterIds.Length;
+                Core.AudioCues.Post("menu");
+            }
             if (keyboard.WasKeyJustPressed(Keys.Right) || keyboard.WasKeyJustPressed(Keys.D))
+            {
                 _selected = (_selected + 1) % StarterIds.Length;
+                Core.AudioCues.Post("menu");
+            }
 
             if (keyboard.WasKeyJustPressed(Keys.Enter) || keyboard.WasKeyJustPressed(Keys.Z))
+            {
+                Core.AudioCues.Post("levelup");
                 Game.States.ChangeState(new DungeonState(Game, StarterIds[_selected]));
+            }
             if (keyboard.WasKeyJustPressed(Keys.Escape))
                 Game.States.ChangeState(new TitleState(Game));
         }

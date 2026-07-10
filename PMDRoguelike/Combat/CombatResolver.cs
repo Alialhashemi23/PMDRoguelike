@@ -48,6 +48,7 @@ namespace PMDRoguelike.Combat
 
             attacker.BeginLunge();
             _log.Add($"{attacker.DisplayName} used {move.Name}!");
+            if (attacker == _player || IsNearPlayer(attacker, _player)) AudioCues.Post("attack");
 
             // Item hooks that fire on any real move use (Choice Band lock).
             if (attacker == _player && !isStruggle) _player.Inventory.OnMoveUsed(Context, move);
@@ -79,12 +80,14 @@ namespace PMDRoguelike.Combat
             if (result.Missed)
             {
                 _log.Add($"{attacker.DisplayName}'s attack missed!");
+                AudioCues.Post("miss");
                 return;
             }
 
             if (result.Effectiveness <= 0f)
             {
                 _log.Add($"It doesn't affect {target.DisplayName}...");
+                AudioCues.Post("miss");
                 return;
             }
 
@@ -97,6 +100,8 @@ namespace PMDRoguelike.Combat
 
             target.TakeDamage(damage);
             target.FlashHit();
+            AudioCues.Post(result.Effectiveness >= 2f ? "hit_super"
+                : result.Effectiveness < 1f ? "hit_weak" : "hit_normal");
 
             if (result.IsCritical) _log.Add("A critical hit!");
             if (result.Effectiveness >= 2f) _log.Add("It's super effective!");
@@ -163,6 +168,7 @@ namespace PMDRoguelike.Combat
             if (!target.ApplyStatus(type, StatusRules.DurationFor(type))) return false;
 
             _log.Add(StatusRules.InflictMessage(target, type));
+            if (target == _player || IsNearPlayer(target, _player)) AudioCues.Post("status");
             return true;
         }
 
@@ -212,6 +218,7 @@ namespace PMDRoguelike.Combat
         private void HandleFaint(Actor attacker, Actor victim)
         {
             _log.Add($"{victim.DisplayName} fainted!");
+            AudioCues.Post("faint");
 
             if (victim is Player)
             {

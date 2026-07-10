@@ -178,6 +178,7 @@ namespace PMDRoguelike.Turns
                     if (index < 0 || index >= _player.Moves.Count || _player.Moves[index] != lockedSlot)
                     {
                         _log.Add($"The Choice Band only allows {lockedSlot.Move.Name}!");
+                        AudioCues.Post("denied");
                         return null;
                     }
                     return lockedSlot;
@@ -190,6 +191,7 @@ namespace PMDRoguelike.Turns
             if (!slot.HasPP)
             {
                 _log.Add($"{slot.Move.Name} is out of PP!");
+                AudioCues.Post("denied");
                 return null;
             }
 
@@ -211,6 +213,7 @@ namespace PMDRoguelike.Turns
                 _player.AddPoke(pile.Amount);
                 _log.Add($"Picked up {pile.Amount} Poké!");
                 _map.MoneyPiles.Remove(pile);
+                AudioCues.Post("money");
             }
         }
 

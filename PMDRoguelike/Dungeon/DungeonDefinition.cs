@@ -23,6 +23,9 @@ namespace PMDRoguelike.Dungeon
         public string WallColor { get; set; }
         public string FloorColor { get; set; }
 
+        /// <summary>Music track name under Content/Audio/Music.</summary>
+        public string Music { get; set; } = "verdant";
+
         // Which species spawn here and at what levels.
         public LevelRange EnemyLevels { get; set; } = new LevelRange { Min = 1, Max = 3 };
         public List<string> EnemySpecies { get; set; } = new List<string>();

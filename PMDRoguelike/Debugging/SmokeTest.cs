@@ -50,6 +50,7 @@ namespace PMDRoguelike.Debugging
             ok &= ItemGoldenTests();
             ok &= EconomyGoldenTests(seed);
             ok &= FogOfWarGoldenTests();
+            ok &= AudioCueTests();
 
             Console.WriteLine(ok ? "SMOKE TEST PASSED" : "SMOKE TEST FAILED");
             return ok ? 0 : 1;
@@ -164,6 +165,26 @@ namespace PMDRoguelike.Debugging
             ok &= Expect(player.CurrentHP <= hpBefore, "Struggle recoil should not heal the attacker");
 
             if (ok) Console.WriteLine("Combat: scripted battle (PP, faint, EXP, level-up, Struggle) — OK");
+            return ok;
+        }
+
+        // ------------------------------------------------------------------
+        // Audio cue bus tests (Phase 9)
+        // ------------------------------------------------------------------
+
+        private static bool AudioCueTests()
+        {
+            AudioCues.Clear();
+
+            // Headless runs post cues that nothing drains: the queue must stay capped.
+            for (int i = 0; i < 500; i++) AudioCues.Post("menu");
+            bool ok = Expect(AudioCues.Count <= 32, $"cue queue should cap at 32, got {AudioCues.Count}");
+
+            ok &= Expect(AudioCues.TryDequeue(out string cue) && cue == "menu", "cue bus should dequeue in order");
+            AudioCues.Clear();
+            ok &= Expect(AudioCues.Count == 0 && !AudioCues.TryDequeue(out _), "Clear should empty the bus");
+
+            if (ok) Console.WriteLine("Audio: cue bus caps and drains correctly — OK");
             return ok;
         }
 

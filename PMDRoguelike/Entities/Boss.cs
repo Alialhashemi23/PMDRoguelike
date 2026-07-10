@@ -68,6 +68,7 @@ namespace PMDRoguelike.Entities
                 log.Add(summoned > 0
                     ? $"{DisplayName} calls for backup!"
                     : $"{DisplayName} roars in fury!");
+                AudioCues.Post("boss");
                 return new WaitAction();
             }
 
@@ -77,6 +78,7 @@ namespace PMDRoguelike.Entities
                 _enraged = true;
                 RefreshStats();
                 log.Add($"{DisplayName} is enraged! Its attacks sharpen!");
+                AudioCues.Post("boss");
             }
 
             return base.DecideAction(map, player, isTileFree, rng, log);

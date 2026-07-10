@@ -94,5 +94,10 @@
       "showFPS": true,
       "enableCheats": false
     }
+  },
+  "audio": {
+    "masterVolume": 0.8,
+    "musicVolume": 0.6,
+    "sfxVolume": 0.8
   }
 }

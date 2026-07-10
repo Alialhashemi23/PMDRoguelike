@@ -82,6 +82,7 @@ namespace PMDRoguelike.Entities
                 Level++;
                 RefreshStats();
                 log.Add($"{DisplayName} grew to level {Level}!");
+                AudioCues.Post("levelup");
 
                 foreach (LearnsetEntry entry in Species.Learnset.Where(e => e.Level == Level))
                 {

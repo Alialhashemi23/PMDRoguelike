@@ -18,6 +18,12 @@ namespace PMDRoguelike.States
             _player = player;
         }
 
+        public override void Enter()
+        {
+            Game.Audio?.PlayMusic("title");
+            Core.AudioCues.Post("levelup");
+        }
+
         public override void Update(GameTime gameTime)
         {
             if (KeyboardManager.Instance.WasKeyJustPressed(Keys.Enter))

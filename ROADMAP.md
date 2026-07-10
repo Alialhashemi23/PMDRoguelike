@@ -160,14 +160,14 @@ reach a stubbed victory; a stubbed game-over exists for later.
 
 ---
 
-## Phase 9: Audio
+## ✅ Phase 9: Audio — DONE
 
 **Goal:** the game makes noise.
 
-- [ ] Audio manager: SFX (SoundEffect) + music (looping Song/SoundEffectInstance) through the content pipeline, volumes in GameConstants
-- [ ] SFX hooks on existing events: move used, hit (normal/super/not-very), faint, pickup, stairs, chest, buy, level-up, menu navigation
-- [ ] Music: per-dungeon track, boss track, title track (placeholder/CC0 audio to start)
-- [ ] Mute/volume in the pause menu
+- [x] Audio manager: SFX (SoundEffect) + music (looping Song/SoundEffectInstance) through the content pipeline, volumes in GameConstants
+- [x] SFX hooks on existing events: move used, hit (normal/super/not-very), faint, pickup, stairs, chest, buy, level-up, menu navigation
+- [x] Music: per-dungeon track, boss track, title track (placeholder/CC0 audio to start)
+- [x] Mute/volume in the pause menu
 
 **Playable check:** play with sound on; super-effective hits should feel chunky.
 

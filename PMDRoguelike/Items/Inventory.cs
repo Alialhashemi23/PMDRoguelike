@@ -50,6 +50,7 @@ namespace PMDRoguelike.Items
                     _owner.RefreshStats();
                     _owner.RunStats.ItemsCollected++;
                     log.Add($"Picked up {passive.Name} (x{StacksOf(passive.Id)})!");
+                    Core.AudioCues.Post("pickup");
                     return true;
 
                 case ActiveItem active:
@@ -61,6 +62,7 @@ namespace PMDRoguelike.Items
                     Actives.Add(active);
                     _owner.RunStats.ItemsCollected++;
                     log.Add($"Picked up {active.Name}! ({(Actives.Count == 1 ? "Q" : "E")} to use)");
+                    Core.AudioCues.Post("pickup");
                     return true;
 
                 default:

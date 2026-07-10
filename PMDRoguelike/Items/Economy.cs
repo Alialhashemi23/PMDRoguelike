@@ -87,6 +87,7 @@ namespace PMDRoguelike.Items
             if (player.Poke < shopItem.Price)
             {
                 log.Add($"Not enough Poké — the {shopItem.Item.Name} costs {shopItem.Price}.");
+                Core.AudioCues.Post("denied");
                 return false;
             }
 
@@ -96,6 +97,7 @@ namespace PMDRoguelike.Items
             player.SpendPoke(shopItem.Price);
             map.ShopItems.Remove(shopItem);
             log.Add($"Bought the {shopItem.Item.Name} for {shopItem.Price} Poké.");
+            Core.AudioCues.Post("buy");
             return true;
         }
 
@@ -105,11 +107,13 @@ namespace PMDRoguelike.Items
             if (player.Poke < chest.Price)
             {
                 log.Add($"The chest is locked — {chest.Price} Poké to open.");
+                Core.AudioCues.Post("denied");
                 return false;
             }
 
             player.SpendPoke(chest.Price);
             map.Chests.Remove(chest);
+            Core.AudioCues.Post("chest");
 
             Item item = ItemRegistry.Roll(rng, depth);
             log.Add($"The chest creaks open... it held a {item.Name}!");

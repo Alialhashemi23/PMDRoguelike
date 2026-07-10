@@ -57,6 +57,7 @@ namespace PMDRoguelike.States
             ApplyPalette(dungeon);
 
             bool bossFloor = _run.IsFinalFloorOfDungeon && dungeon.Boss != null;
+            Game.Audio?.PlayMusic(bossFloor ? "boss" : dungeon.Music);
             var generator = new DungeonGenerator(Game.Rng);
             GeneratedFloor floor = bossFloor ? generator.GenerateBossArena(dungeon) : generator.Generate(dungeon);
             _map = floor.Map;
@@ -250,6 +251,7 @@ namespace PMDRoguelike.States
 
         private void Descend()
         {
+            Core.AudioCues.Post("stairs");
             _run.AddTurns(_turns.TurnCount);
 
             AdvanceResult result = _run.Advance();

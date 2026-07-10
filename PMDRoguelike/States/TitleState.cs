@@ -12,6 +12,8 @@ namespace PMDRoguelike.States
 
         public TitleState(PMDRogueGame game) : base(game) { }
 
+        public override void Enter() => Game.Audio?.PlayMusic("title");
+
         public override void Update(GameTime gameTime)
         {
             _pulse += (float)gameTime.ElapsedGameTime.TotalSeconds;
@@ -19,6 +21,7 @@ namespace PMDRoguelike.States
             KeyboardManager keyboard = KeyboardManager.Instance;
             if (keyboard.WasKeyJustPressed(Keys.Enter))
             {
+                Core.AudioCues.Post("menu");
                 Game.States.ChangeState(new StarterSelectState(Game));
             }
             else if (keyboard.WasKeyJustPressed(Keys.Escape))

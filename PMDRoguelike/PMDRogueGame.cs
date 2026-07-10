@@ -18,6 +18,7 @@ namespace PMDRoguelike
 
         public SpriteBatch SpriteBatch { get; private set; }
         public GameContentManager GameContent { get; private set; }
+        public AudioManager Audio { get; private set; }
         public GameStateManager States { get; } = new();
         public Rng Rng { get; private set; }
 
@@ -49,6 +50,9 @@ namespace PMDRoguelike
             GameContent = new GameContentManager(Content, GraphicsDevice);
             GameContent.RegisterSolid("ui.pixel", Color.White);
 
+            Audio = new AudioManager(Content);
+            Audio.LoadContent();
+
             States.ChangeState(new TitleState(this));
         }
 
@@ -61,6 +65,7 @@ namespace PMDRoguelike
                 Exit();
 
             States.Current?.Update(gameTime);
+            Audio?.Update();
 
             base.Update(gameTime);
         }

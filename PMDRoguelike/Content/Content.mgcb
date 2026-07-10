@@ -44,3 +44,129 @@
 /processorParam:TextureFormat=Color
 /build:Tiles/grass.png
 
+
+#begin Audio/Sfx/attack.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/attack.wav
+
+#begin Audio/Sfx/boss.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/boss.wav
+
+#begin Audio/Sfx/buy.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/buy.wav
+
+#begin Audio/Sfx/chest.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/chest.wav
+
+#begin Audio/Sfx/denied.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/denied.wav
+
+#begin Audio/Sfx/faint.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/faint.wav
+
+#begin Audio/Sfx/hit_normal.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/hit_normal.wav
+
+#begin Audio/Sfx/hit_super.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/hit_super.wav
+
+#begin Audio/Sfx/hit_weak.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/hit_weak.wav
+
+#begin Audio/Sfx/levelup.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/levelup.wav
+
+#begin Audio/Sfx/menu.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/menu.wav
+
+#begin Audio/Sfx/miss.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/miss.wav
+
+#begin Audio/Sfx/money.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/money.wav
+
+#begin Audio/Sfx/pickup.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/pickup.wav
+
+#begin Audio/Sfx/stairs.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/stairs.wav
+
+#begin Audio/Sfx/status.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/status.wav
+
+#begin Audio/Music/boss.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Music/boss.wav
+
+#begin Audio/Music/caverns.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Music/caverns.wav
+
+#begin Audio/Music/spire.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Music/spire.wav
+
+#begin Audio/Music/title.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Music/title.wav
+
+#begin Audio/Music/verdant.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Music/verdant.wav

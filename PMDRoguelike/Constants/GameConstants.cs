@@ -133,11 +133,14 @@ namespace PMDRoguelike.Constants
             Debug = new DebugConstants
             {
                 Settings = new DebugSettingsConstants { ShowCollisionBoxes = false, ShowFPS = true, EnableCheats = false }
-            }
+            },
+            Audio = new AudioConstants()
         };
 
         /// <summary>Full constants tree for systems that need direct access.</summary>
         public GameConstantsData Data => _constants;
+
+        // (Audio getters live on Data.Audio; null-tolerant since older JSON may omit it.)
 
         // Convenience getters for the most commonly used values
         public int TileSize => _constants.Graphics.TileSize;
@@ -158,6 +161,14 @@ namespace PMDRoguelike.Constants
         public AssetsConstants Assets { get; set; }
         public AIConstants AI { get; set; }
         public DebugConstants Debug { get; set; }
+        public AudioConstants Audio { get; set; }
+    }
+
+    public class AudioConstants
+    {
+        public float MasterVolume { get; set; } = 0.8f;
+        public float MusicVolume { get; set; } = 0.6f;
+        public float SfxVolume { get; set; } = 0.8f;
     }
 
     public class GraphicsConstants

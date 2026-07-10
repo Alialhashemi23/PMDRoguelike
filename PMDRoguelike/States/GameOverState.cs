@@ -24,6 +24,8 @@ namespace PMDRoguelike.States
             _totalTurns = totalTurns;
         }
 
+        public override void Enter() => Game.Audio?.StopMusic();
+
         public override void Update(GameTime gameTime)
         {
             if (KeyboardManager.Instance.WasKeyJustPressed(Keys.Enter))

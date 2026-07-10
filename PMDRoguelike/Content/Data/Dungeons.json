@@ -8,9 +8,22 @@
       "floorHeight": 32,
       "wallColor": "#2F4A33",
       "floorColor": "#A9C48E",
-      "enemyLevels": { "min": 2, "max": 5 },
-      "enemySpecies": ["caterpie", "pidgey", "rattata", "oddish"],
-      "boss": { "species": "ivysaur", "level": 8, "title": "Overgrown Guardian Ivysaur" }
+      "enemyLevels": {
+        "min": 2,
+        "max": 5
+      },
+      "enemySpecies": [
+        "caterpie",
+        "pidgey",
+        "rattata",
+        "oddish"
+      ],
+      "boss": {
+        "species": "ivysaur",
+        "level": 8,
+        "title": "Overgrown Guardian Ivysaur"
+      },
+      "music": "verdant"
     },
     {
       "id": "ember-caverns",
@@ -20,9 +33,22 @@
       "floorHeight": 36,
       "wallColor": "#4A2E28",
       "floorColor": "#C9A184",
-      "enemyLevels": { "min": 7, "max": 11 },
-      "enemySpecies": ["geodude", "growlithe", "machop", "zubat"],
-      "boss": { "species": "onix", "level": 14, "title": "Tunnel Tyrant Onix" }
+      "enemyLevels": {
+        "min": 7,
+        "max": 11
+      },
+      "enemySpecies": [
+        "geodude",
+        "growlithe",
+        "machop",
+        "zubat"
+      ],
+      "boss": {
+        "species": "onix",
+        "level": 14,
+        "title": "Tunnel Tyrant Onix"
+      },
+      "music": "caverns"
     },
     {
       "id": "tempest-spire",
@@ -32,9 +58,22 @@
       "floorHeight": 40,
       "wallColor": "#33334F",
       "floorColor": "#9FA6C4",
-      "enemyLevels": { "min": 12, "max": 17 },
-      "enemySpecies": ["magnemite", "abra", "gastly", "pikachu"],
-      "boss": { "species": "gengar", "level": 20, "title": "Phantom Lord Gengar" }
+      "enemyLevels": {
+        "min": 12,
+        "max": 17
+      },
+      "enemySpecies": [
+        "magnemite",
+        "abra",
+        "gastly",
+        "pikachu"
+      ],
+      "boss": {
+        "species": "gengar",
+        "level": 20,
+        "title": "Phantom Lord Gengar"
+      },
+      "music": "spire"
     }
   ]
 }
