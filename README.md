@@ -24,6 +24,11 @@ meta-progression.
 - **Placeholder A/V, real pipelines**: every sprite and sound is procedurally generated
   by scripts in `tools/` — replace any file under `Content/Sprites` or `Content/Audio`
   with real art/audio of the same name and it just works
+- **Real PMD-style sprites in one command**: `python3 tools/fetch_pmd_sprites.py` pulls
+  community walk sprites for the whole roster from
+  [PMDCollab SpriteCollab](https://github.com/PMDCollab/SpriteCollab) and converts them
+  to the game's sheet layout (non-commercial use, artist credit required — the script
+  writes a credits file)
 
 ## Building & Running
 
